@@ -1,0 +1,12 @@
+# Detection engine (detector.py, main.py, gui_app.py) uses only the standard library.
+# Tkinter ships with CPython; on Debian/Ubuntu install python3-tk.
+
+# Streamlit dashboard (app.py)
+streamlit>=1.30
+pandas>=2.0
+
+# Dataset builder (build_dataset.py)
+tldextract>=5.0
+
+# Tests
+pytest>=8.0
