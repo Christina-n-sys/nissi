@@ -1,0 +1,2 @@
+threshold,tp,fp,tn,fn,accuracy,precision,recall,specificity,f1
+60,0,0,85,85,0.5,0.0,0.0,1.0,0.0

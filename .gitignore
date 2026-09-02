@@ -3,8 +3,6 @@ __pycache__/
 .pytest_cache/
 *.pkl
 data/raw/
-results/
-data/urls.csv
 data/legit_urls.txt
 paper/node_modules/
 paper/package-lock.json

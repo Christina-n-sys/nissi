@@ -204,18 +204,6 @@ const front = [
 const content = [];
 const P = (x) => content.push(x);
 
-// Draft banner ---------------------------------------------------------------
-P(new Paragraph({
-  spacing: { after: 160 },
-  shading: { type: ShadingType.CLEAR, fill: "FFF2CC", color: "auto" },
-  // No paragraph border: docx-js emits w:pBdr children in an order the schema
-  // rejects. The shading alone makes the banner unmissable.
-  children: [new TextRun({
-    text: "DRAFT — one measurement outstanding. All figures and tables below are from the run of 2 September 2026 except the threshold-10 rows of Tables VII and VIII, shown as em dashes. Re-run python evaluate.py (seconds; the dataset already exists) and fill them from results/ablation.csv and results/match_mode.csv. Delete this box afterwards.",
-    font: FONT, size: SMALL, bold: true,
-  })],
-}));
-
 // Abstract -------------------------------------------------------------------
 P(new Paragraph({
   alignment: AlignmentType.JUSTIFIED,
@@ -239,9 +227,14 @@ P(new Paragraph({
           + "configured threshold is miscalibrated by a factor of six. More "
           + "consequentially, the multilingual vocabulary is inert on this "
           + "corpus: four of its 33 terms fire at all, none of them Hindi, Tamil "
-          + "or Telugu, and what detection remains comes almost entirely from a "
+          + "or Telugu. An ablation shows its marginal value is not merely small "
+          + "but negative, since removing the vocabulary raises F1 from 0.780 to "
+          + "0.786; what detection remains comes almost entirely from a "
           + "URL-length rule that the paper's own construction diagnostic "
-          + "identifies as an artifact of how the benchmark was assembled. Two "
+          + "identifies as an artifact of how the benchmark was assembled. "
+          + "Thirty-six per cent of the phishing URLs carry their deception in "
+          + "the spelling of the hostname rather than in path keywords, which is "
+          + "a mechanism keyword matching cannot address. Two "
           + "further findings emerged from the pipeline rather than the detector. "
           + "Two thirds of the live phishing feed was hosted on domains that also "
           + "appear among the top sites, so domain-level features cannot separate "
@@ -312,11 +305,7 @@ P(bullet("2)  A negative result obtained under an enforced protocol. At the risk
   + "threshold the system was configured with, the detector classifies no URL as "
   + "phishing: recall and F1 are zero. The best attainable operating point lies "
   + "at one sixth of that threshold. The result is reported as found."));
-P(bullet("3)  Evidence that the multilingual vocabulary is inert on a global "
-  + "phishing feed. Four of 33 terms fire, none of them Hindi, Tamil or Telugu. "
-  + "The corpus does not contain the phenomenon the vocabulary was built for, "
-  + "which is a statement about benchmark availability as much as about the "
-  + "detector."));
+P(bullet("3)  Evidence that the multilingual vocabulary has negative marginal value on a global phishing feed. Four of 33 terms fire, none of them Hindi, Tamil or Telugu, and removing the vocabulary entirely improves F1. The corpus does not contain the phenomenon the vocabulary was built for, which is a statement about benchmark availability as much as about the detector."));
 P(bullet("4)  A measurement of where live phishing is hosted. Two thirds of the "
   + "feed sat on domains that also appear among the top sites, so no domain-level "
   + "feature can separate the classes on this data."));
@@ -650,16 +639,12 @@ P(table([620, 1560, 780, 780, 780, 710], [
    { t: "0.000", a: AlignmentType.CENTER }, { t: "0.000", a: AlignmentType.CENTER }],
   [{ t: "10", a: AlignmentType.CENTER }, { t: "All rules" }, { t: "0.818", a: AlignmentType.CENTER }, { t: "0.982", a: AlignmentType.CENTER },
    { t: "0.647", a: AlignmentType.CENTER }, { t: "0.780", a: AlignmentType.CENTER }],
-  [{ t: "10", a: AlignmentType.CENTER }, { t: "Vocabulary only" }, { t: PENDING, a: AlignmentType.CENTER }, { t: PENDING, a: AlignmentType.CENTER },
-   { t: PENDING, a: AlignmentType.CENTER }, { t: PENDING, a: AlignmentType.CENTER }],
-  [{ t: "10", a: AlignmentType.CENTER }, { t: "Structural only" }, { t: PENDING, a: AlignmentType.CENTER }, { t: PENDING, a: AlignmentType.CENTER },
-   { t: PENDING, a: AlignmentType.CENTER }, { t: PENDING, a: AlignmentType.CENTER }],
+  [{ t: "10", a: AlignmentType.CENTER }, { t: "Vocabulary only" }, { t: "0.529", a: AlignmentType.CENTER }, { t: "0.857", a: AlignmentType.CENTER },
+   { t: "0.071", a: AlignmentType.CENTER }, { t: "0.130", a: AlignmentType.CENTER }],
+  [{ t: "10", a: AlignmentType.CENTER }, { t: "Structural only" }, { t: "0.824", a: AlignmentType.CENTER }, { t: "1.000", a: AlignmentType.CENTER },
+   { t: "0.647", a: AlignmentType.CENTER }, { t: "0.786", a: AlignmentType.CENTER }],
 ]));
-P(note("At the configured threshold of 60 every variant scores zero, so the "
-  + "comparison is vacuous there. The two outstanding rows come from "
-  + "results/ablation.csv on a re-run of evaluate.py. Section VII-C already "
-  + "establishes from the per-rule statistics that long_url carries essentially "
-  + "all of the detection."));
+P(note("At the configured threshold of 60 every variant scores zero, so the comparison is vacuous there and is reported at the best operating point as well. Removing the vocabulary raises F1 from 0.780 to 0.786."));
 
 tableCaption("VIII", "Substring Against Token Matching").forEach(P);
 P(table([620, 1560, 780, 780, 780, 710], [
@@ -671,11 +656,10 @@ P(table([620, 1560, 780, 780, 780, 710], [
    { t: "0.000", a: AlignmentType.CENTER }, { t: "0.000", a: AlignmentType.CENTER }],
   [{ t: "10", a: AlignmentType.CENTER }, { t: "Substring" }, { t: "0.818", a: AlignmentType.CENTER }, { t: "0.982", a: AlignmentType.CENTER },
    { t: "0.647", a: AlignmentType.CENTER }, { t: "0.780", a: AlignmentType.CENTER }],
-  [{ t: "10", a: AlignmentType.CENTER }, { t: "Token" }, { t: PENDING, a: AlignmentType.CENTER }, { t: PENDING, a: AlignmentType.CENTER },
-   { t: PENDING, a: AlignmentType.CENTER }, { t: PENDING, a: AlignmentType.CENTER }],
+  [{ t: "10", a: AlignmentType.CENTER }, { t: "Token" }, { t: "0.824", a: AlignmentType.CENTER }, { t: "1.000", a: AlignmentType.CENTER },
+   { t: "0.647", a: AlignmentType.CENTER }, { t: "0.786", a: AlignmentType.CENTER }],
 ]));
-P(note("Vacuous at the configured threshold, as above. Too few vocabulary terms "
-  + "fire on this corpus for the modes to differ meaningfully; see Section VII-E."));
+P(note("Vacuous at the configured threshold, as above. At the best operating point token matching is strictly better, removing the substring false positive described in Section VII-E."));
 
 figure("fig6_threshold_sweep.png", "Precision, recall and F1 across the full threshold range. The dotted line marks the operating threshold of 60.", 344).forEach(P);
 figure("fig7_ablation.png", "Rule-group ablation. The gap between the full rule set and the vocabulary-only variant is the contribution of the multilingual terms.", 344).forEach(P);
@@ -700,26 +684,33 @@ P(body("Reaching an F1 of 0.780 requires accepting a score of 10, which is a "
   + "multi-rule scorer at all; it is operating as a single-indicator alarm, and "
   + "Section VII-C identifies the indicator."));
 
-P(subHead("B.  The multilingual vocabulary does not fire"));
+P(subHead("B.  The multilingual vocabulary has negative marginal value"));
 P(body("Fig. 9 gives the firing rate of each rule within each class. Four of the "
   + "33 vocabulary terms fire anywhere in the dataset: login on three phishing "
   + "URLs, and update, account and pan on one each. None of the Hindi, Tamil or "
-  + "Telugu terms fire at all. The multilingual vocabulary, which is the "
-  + "contribution the detector was built around, contributes at most six of 85 "
-  + "phishing detections and one false positive.", { noIndent: true }));
-P(body("The most plausible reading is scope rather than defect. OpenPhish is a "
-  + "global feed, and the campaigns live on the day of retrieval were not aimed "
-  + "at Hindi, Tamil or Telugu speakers. A vocabulary built for regional-language "
-  + "lures cannot be exercised by a corpus that contains none, and this evaluation "
-  + "therefore does not show that multilingual keyword matching fails; it shows "
-  + "that the standard public benchmark cannot test it. That distinction matters, "
-  + "and it is a finding about the state of available benchmarks: an "
-  + "India-targeted phishing corpus with retrievable URLs would be required, and "
-  + "we could not source one."));
-P(body("The honest consequence is that no claim about multilingual detection "
-  + "performance is supported by this experiment, in either direction. The "
-  + "vocabulary is released and specified so that it can be tested when such a "
-  + "corpus exists."));
+  + "Telugu terms fire at all.", { noIndent: true }));
+P(body("The ablation of Table VII quantifies what that costs. At the best "
+  + "operating point the vocabulary alone reaches an F1 of 0.130, catching six of "
+  + "85 phishing URLs at a precision of 0.857. The structural rules alone reach "
+  + "0.786. The full rule set reaches 0.780. Removing the multilingual vocabulary "
+  + "therefore improves the detector, because the six URLs it finds are already "
+  + "found by the structural rules while its single false positive is not "
+  + "otherwise produced. On this corpus the contribution of the vocabulary is not "
+  + "small; it is negative."));
+P(body("One of its six hits is spurious in any case. The term pan matches inside "
+  + "the hostname cpanel.site, which is a hosting control panel and not a "
+  + "reference to a Permanent Account Number. The rule fires for the wrong reason "
+  + "and is counted as a true positive only because the URL happens to be "
+  + "phishing for unrelated reasons."));
+P(body("The reading we favour is scope rather than defect. OpenPhish is a global "
+  + "feed, and no URL in the retrieved sample contains a single non-ASCII "
+  + "character, let alone Devanagari, Tamil or Telugu script or a transliteration "
+  + "of one. A vocabulary built for regional-language lures cannot be exercised by "
+  + "a corpus that contains none. This evaluation therefore does not show that "
+  + "multilingual keyword matching fails; it shows that the standard public "
+  + "benchmark cannot test it, and that on a global feed the vocabulary is dead "
+  + "weight. Both statements are worth making, and neither supports a claim about "
+  + "multilingual detection performance in either direction."));
 
 P(subHead("C.  What detection remains is the construction artifact"));
 P(body("One rule accounts for almost all of the behaviour. The long_url rule "
@@ -757,6 +748,21 @@ P(body("These are hosting, publishing and content-delivery platforms. Roughly "
   + "reputation-level feature can separate the classes, because the domain is "
   + "shared. Detection has to come from the path, the subdomain label or the page, "
   + "none of which a registrable-domain feature sees."));
+P(body("Inspecting the phishing class directly sharpens the point. Thirty-six "
+  + "per cent of the URLs impersonate a brand by misspelling it in the hostname: "
+  + "whastapp-center.my, robiox.com.py, roblox.ly, steamcommunutty.com, "
+  + "helpnetfllix.shop. Fifteen per cent are served from general-purpose hosting "
+  + "platforms and eleven per cent from link shorteners or QR redirectors, which "
+  + "carry no attacker-chosen text at all. Roblox, WhatsApp, Netflix and Microsoft "
+  + "are themselves present in the legitimate class: the attack is to register a "
+  + "domain that resembles one of the top sites.", { noIndent: true }));
+P(body("The deception in this corpus is therefore carried by the spelling of the "
+  + "domain, not by lure words in the path. A vocabulary of terms such as verify "
+  + "and login is looking in a place the attacker no longer uses. What would "
+  + "detect these URLs is string similarity against a list of known brands, which "
+  + "is a different mechanism from keyword matching and is not what this detector "
+  + "implements."));
+
 P(body("This also explains part of Section VII-B. A phishing URL of the form "
   + "https://random-name.pages.dev/ has no lexical surface for a keyword rule to "
   + "match: the attacker-chosen text sits in a subdomain generated to look "
@@ -764,13 +770,23 @@ P(body("This also explains part of Section VII-B. A phishing URL of the form "
   + "detector is being asked to read words that the current hosting pattern has "
   + "removed."));
 
-P(subHead("E.  Substring and token matching are indistinguishable here"));
-P(body("At the configured threshold both matching modes score zero, so the "
-  + "comparison is vacuous there. Because so few vocabulary terms fire at all, "
-  + "the modes have almost no opportunity to differ on this corpus; the "
-  + "comparison is retained in the harness and in Table VIII, but this dataset "
-  + "cannot answer the question. It should be re-run on a corpus in which the "
-  + "vocabulary is actually exercised.", { noIndent: true }));
+P(subHead("E.  Token matching is strictly better than substring matching"));
+P(body("At the configured threshold both matching modes score zero and the "
+  + "comparison is vacuous. At the best operating point they separate: substring "
+  + "matching reaches an F1 of 0.780 and token matching 0.786, the whole "
+  + "difference being one false positive that token matching does not make.",
+  { noIndent: true }));
+P(body("That false positive is instructive. The legitimate URL "
+  + "https://windowsupdate.com contains the vocabulary term update as a "
+  + "substring of windowsupdate, and substring matching duly reports it. Token "
+  + "matching splits the URL on non-alphanumeric characters, finds the tokens "
+  + "windowsupdate and com, and matches neither. The same mechanism produced the "
+  + "spurious pan match inside cpanel.site noted in Section VII-B."));
+P(body("The prototype used substring matching, and this is the second parameter "
+  + "inherited from it that measurement shows to be the wrong choice. Token "
+  + "matching should be the default. The margin here rests on a single URL and is "
+  + "not by itself strong evidence, but it points the same way as the mechanism, "
+  + "and the mechanism is not in doubt."));
 
 // --- VIII. Threats to validity ---------------------------------------------
 P(sectionHead("VIII.  Threats to Validity and Limitations"));
