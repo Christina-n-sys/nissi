@@ -8,7 +8,7 @@ const {
 const FONT = "Times New Roman";
 const BODY = 20;      // 10pt in half-points
 const SMALL = 16;     // 8pt, used inside tables
-const COL_W = 4870;   // usable width of one column, in DXA
+const COL_W = 5230;   // usable width of one column, in DXA
 
 // ---------- helpers ----------
 
@@ -55,11 +55,20 @@ const equation = (text) => new Paragraph({
   children: [new TextRun({ text, font: FONT, size: BODY, italics: true })],
 });
 
-const caption = (text) => new Paragraph({
-  alignment: AlignmentType.CENTER,
-  spacing: { before: 100, after: 60 },
-  children: [new TextRun({ text, font: FONT, size: SMALL, smallCaps: true })],
-});
+// IEEE table captions sit above the table on two lines: the number, then the
+// title. Both centred, both 8pt.
+const tableCaption = (number, titleText) => [
+  new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 140, after: 0 },
+    children: [new TextRun({ text: `TABLE ${number}`, font: FONT, size: SMALL })],
+  }),
+  new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 0, after: 60 },
+    children: [new TextRun({ text: titleText, font: FONT, size: SMALL, smallCaps: true })],
+  }),
+];
 
 const note = (text) => new Paragraph({
   alignment: AlignmentType.LEFT,
@@ -113,7 +122,7 @@ function table(widths, rows) {
 // ---------- figures ----------
 
 const FIGDIR = __dirname + "/figures";
-const COL_PX = 330;   // one column at 96 dpi, matching COL_W inches
+const COL_PX = 344;   // one column at 96 dpi, matching COL_W
 
 // Embeds figures/<file> scaled to column width. When the figure has not been
 // generated yet, a visible placeholder is emitted instead of silently nothing.
@@ -244,7 +253,7 @@ P(new Paragraph({
   alignment: AlignmentType.JUSTIFIED,
   spacing: { after: 120 },
   children: [
-    new TextRun({ text: "Keywords—", font: FONT, size: BODY, bold: true, italics: true }),
+    new TextRun({ text: "Index Terms—", font: FONT, size: BODY, bold: true, italics: true }),
     new TextRun({
       text: "phishing detection, URL analysis, multilingual keyword matching, "
           + "rule-based classification, explainable security, dataset construction "
@@ -360,8 +369,8 @@ P(body("The lexical component matches a 33-term vocabulary of transliterated "
   + "vocabulary is deduplicated, so a term shared between languages, such as "
   + "khata and suraksha in Hindi and Telugu, contributes once rather than twice.",
   { noIndent: true }));
-P(caption("Table I.  Multilingual phishing vocabulary"));
-P(table([900, 380, 3590], [
+tableCaption("I", "Multilingual Phishing Vocabulary").forEach(P);
+P(table([960, 400, 3870], [
   [{ t: "Language" }, { t: "n", a: AlignmentType.CENTER }, { t: "Terms" }],
   [{ t: "English" }, { t: "9", a: AlignmentType.CENTER },
    { t: "login, verify, secure, account, update, bank, otp, signin, password" }],
@@ -379,8 +388,8 @@ P(body("Four structural indicators complement the vocabulary. Their weights and 
   + "in a URL, everything preceding it in the authority component is discarded by "
   + "the browser, making it a direct mechanism for disguising the true host rather "
   + "than a statistical correlate of one.", { noIndent: true }));
-P(caption("Table II.  Rule weights"));
-P(table([1350, 2320, 1200], [
+tableCaption("II", "Rule Weights and Thresholds").forEach(P);
+P(table([1450, 2490, 1290], [
   [{ t: "Rule" }, { t: "Condition" }, { t: "Weight", a: AlignmentType.CENTER }],
   [{ t: "keyword" }, { t: "vocabulary term present" }, { t: "10 each", a: AlignmentType.CENTER }],
   [{ t: "long_url" }, { t: "length > 30 characters" }, { t: "10", a: AlignmentType.CENTER }],
@@ -406,7 +415,7 @@ P(body("The detector returns, alongside the score and band, the identity and wei
   + "attribution method, and it holds exactly rather than approximately.",
   { noIndent: true }));
 
-P(figureImage("fig2_dashboard.png", 330));
+P(figureImage("fig2_dashboard.png", 344));
 P(figCaption("Fig. 2.  Dashboard classifying a URL that combines English lures with the Hindi/Telugu terms suraksha and khata. The verdict is accompanied by every rule that fired and its weight, which sum to the reported score."));
 
 P(subHead("F.  Matching modes"));
@@ -439,8 +448,8 @@ P(body("The present system consolidates an earlier prototype in which the scorin
   + "verdicts from different interfaces of the same system. Any result obtained "
   + "from the prototype would have been unreproducible for reasons invisible to the "
   + "experimenter.", { noIndent: true }));
-P(caption("Table III.  Defects identified and corrected"));
-P(table([420, 1950, 2500], [
+tableCaption("III", "Defects Identified and Corrected in the Prototype").forEach(P);
+P(table([450, 2095, 2685], [
   [{ t: "#" }, { t: "Defect" }, { t: "Effect on results" }],
   [{ t: "1" }, { t: "Two vocabulary terms listed twice" },
    { t: "Affected URLs scored 20 instead of 10" }],
@@ -521,8 +530,8 @@ P(body("Because the confound is invisible in headline metrics, the harness measu
   + "as a warning against interpreting the headline figures. We recommend the "
   + "diagnostic be reported alongside metrics in any URL-classification study.",
   { noIndent: true }));
-P(caption("Table IV.  Dataset composition"));
-P(table([3070, 1800], [
+tableCaption("IV", "Dataset Composition").forEach(P);
+P(table([3300, 1930], [
   [{ t: "Quantity" }, { t: "Value", a: AlignmentType.CENTER }],
   [{ t: "Phishing URLs retrieved" }, { t: PENDING, a: AlignmentType.CENTER }],
   [{ t: "Legitimate URLs collected" }, { t: PENDING, a: AlignmentType.CENTER }],
@@ -535,8 +544,8 @@ P(table([3070, 1800], [
 ]));
 P(note("Fill from the DATASET SUMMARY printed by build_dataset.py."));
 
-P(caption("Table V.  Artifact diagnostic"));
-P(table([2270, 1300, 1300], [
+tableCaption("V", "Construction Artifact Diagnostic").forEach(P);
+P(table([2430, 1400, 1400], [
   [{ t: "Measure" }, { t: "Phishing", a: AlignmentType.CENTER }, { t: "Legitimate", a: AlignmentType.CENTER }],
   [{ t: "Mean URL length" }, { t: PENDING, a: AlignmentType.CENTER }, { t: PENDING, a: AlignmentType.CENTER }],
   [{ t: "URLs with a path (%)" }, { t: PENDING, a: AlignmentType.CENTER }, { t: PENDING, a: AlignmentType.CENTER }],
@@ -571,8 +580,8 @@ P(sectionHead("VII.  Results and Discussion"));
 P(body("The tables in this section are to be populated from a single execution of "
   + "the evaluation harness on the dataset described in Section V.", { noIndent: true }));
 
-P(caption("Table VI.  Classification performance at threshold 60"));
-P(table([2570, 2300], [
+tableCaption("VI", "Classification Performance at Threshold 60").forEach(P);
+P(table([2760, 2470], [
   [{ t: "Metric" }, { t: "Value", a: AlignmentType.CENTER }],
   [{ t: "True positives / False positives" }, { t: PENDING, a: AlignmentType.CENTER }],
   [{ t: "True negatives / False negatives" }, { t: PENDING, a: AlignmentType.CENTER }],
@@ -584,8 +593,8 @@ P(table([2570, 2300], [
 ]));
 P(note("Fill from results/headline.csv."));
 
-P(caption("Table VII.  Rule-group ablation"));
-P(table([1770, 780, 780, 780, 760], [
+tableCaption("VII", "Rule-Group Ablation").forEach(P);
+P(table([1900, 840, 840, 840, 810], [
   [{ t: "Variant" }, { t: "Acc.", a: AlignmentType.CENTER }, { t: "Prec.", a: AlignmentType.CENTER },
    { t: "Rec.", a: AlignmentType.CENTER }, { t: "F1", a: AlignmentType.CENTER }],
   [{ t: "All rules" }, { t: PENDING, a: AlignmentType.CENTER }, { t: PENDING, a: AlignmentType.CENTER },
@@ -599,8 +608,8 @@ P(note("Fill from results/ablation.csv. This is the central table of the paper: 
   + "gap between the first two rows is the contribution of the multilingual "
   + "vocabulary, and the third row bounds what the structural rules achieve alone."));
 
-P(caption("Table VIII.  Substring versus token matching"));
-P(table([1770, 780, 780, 780, 760], [
+tableCaption("VIII", "Substring Against Token Matching").forEach(P);
+P(table([1900, 840, 840, 840, 810], [
   [{ t: "Mode" }, { t: "Acc.", a: AlignmentType.CENTER }, { t: "Prec.", a: AlignmentType.CENTER },
    { t: "Rec.", a: AlignmentType.CENTER }, { t: "F1", a: AlignmentType.CENTER }],
   [{ t: "Substring" }, { t: PENDING, a: AlignmentType.CENTER }, { t: PENDING, a: AlignmentType.CENTER },
@@ -610,11 +619,11 @@ P(table([1770, 780, 780, 780, 760], [
 ]));
 P(note("Fill from results/match_mode.csv."));
 
-P(figureImage("fig3_threshold_sweep.png", 330));
+P(figureImage("fig3_threshold_sweep.png", 344));
 P(figCaption("Fig. 3.  Precision, recall and F1 across the full threshold range. The dotted line marks the operating threshold of 60."));
-P(figureImage("fig4_ablation.png", 330));
+P(figureImage("fig4_ablation.png", 344));
 P(figCaption("Fig. 4.  Rule-group ablation. The gap between the full rule set and the vocabulary-only variant is the contribution of the multilingual terms."));
-P(figureImage("fig5_per_rule.png", 330));
+P(figureImage("fig5_per_rule.png", 344));
 P(figCaption("Fig. 5.  Firing rate of each rule within each class. A rule that fires often on legitimate URLs is a source of false positives."));
 
 P(subHead("A.  Interpretation"));
@@ -673,6 +682,13 @@ P(body("Future work follows the limitations. The vocabulary should be extended t
   + "browser extension a natural deployment, which would allow measurement against "
   + "live traffic rather than a static corpus."));
 
+P(sectionHead("Acknowledgment"));
+P(body("The authors thank the Department of Data Science and Cyber Security, "
+  + "Karunya Institute of Technology and Sciences, for guidance and support, and "
+  + "acknowledge OpenPhish and the Tranco project, whose public feeds made the "
+  + "evaluation in this paper possible, together with the maintainers of the "
+  + "Public Suffix List.", { noIndent: true }));
+
 // References -----------------------------------------------------------------
 P(sectionHead("References"));
 [
@@ -709,7 +725,7 @@ const doc = new Document({
       properties: {
         page: {
           size: { width: 12240, height: 15840, orientation: PageOrientation.PORTRAIT },
-          margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 },
+          margin: { top: 900, right: 720, bottom: 280, left: 720 },
         },
         column: { count: 1 },
       },
@@ -717,6 +733,12 @@ const doc = new Document({
     },
     {
       properties: {
+        // Page size and margins must be repeated: a section does not inherit
+        // them, and docx-js would otherwise default this one to A4.
+        page: {
+          size: { width: 12240, height: 15840, orientation: PageOrientation.PORTRAIT },
+          margin: { top: 900, right: 720, bottom: 280, left: 720 },
+        },
         type: SectionType.CONTINUOUS,
         column: { count: 2, space: 340, equalWidth: true },
       },

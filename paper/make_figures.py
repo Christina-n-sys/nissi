@@ -36,7 +36,7 @@ BLUE, ORANGE, GREEN = "#2a78d6", "#eb6834", "#1baf7a"
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
 SURFACE = "#fcfcfb"
 
-COL_W = 3.45   # IEEE single-column width, inches
+COL_W = 3.63   # IEEE single-column width, inches
 
 plt.rcParams.update({
     "font.family": "serif",
