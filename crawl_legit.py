@@ -311,9 +311,11 @@ def main(argv=None) -> int:
                     handle.flush()
                 written += len(urls)
             done = sum(statuses.values())
-            if done % 25 == 0 or done == len(domains):
-                print(f"  {done}/{len(domains)} domains, {written} URLs",
-                      file=sys.stderr)
+            # Report often: a long silence reads as a hang, not as progress.
+            if done % 10 == 0 or done == len(domains):
+                pct = 100 * done / len(domains)
+                print(f"  {done}/{len(domains)} domains ({pct:.0f}%), "
+                      f"{written} URLs collected", file=sys.stderr, flush=True)
 
     # Start each run from a clean file so counts match the report.
     open(args.out, "w", encoding="utf-8").close()

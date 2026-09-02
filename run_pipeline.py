@@ -35,12 +35,46 @@ def step(number: int, total: int, title: str) -> None:
     print(f"\n{'=' * 66}\nSTEP {number}/{total}: {title}\n{'=' * 66}", flush=True)
 
 
+class Tee:
+    """Write to the console and to a transcript at once.
+
+    Redirecting this script's output to a file hides the progress of the long
+    stages, which makes a working run look like a hung one. Teeing means the
+    transcript exists without the console going quiet.
+    """
+
+    def __init__(self, path: str):
+        self.stream = open(path, "w", encoding="utf-8", errors="replace")
+        self.console = sys.__stdout__
+
+    def write(self, text: str) -> int:
+        self.console.write(text)
+        self.console.flush()
+        self.stream.write(text)
+        self.stream.flush()
+        return len(text)
+
+    def flush(self) -> None:
+        self.console.flush()
+        self.stream.flush()
+
+    def close(self) -> None:
+        self.stream.close()
+
+
 def run(args: list) -> None:
-    """Run a pipeline stage in this interpreter, failing loudly on error."""
+    """Run a pipeline stage, streaming its output so progress stays visible."""
     print(f"$ python {' '.join(args)}\n", flush=True)
-    result = subprocess.run([sys.executable] + args, cwd=HERE)
-    if result.returncode != 0:
-        fail(f"'{args[0]}' exited with code {result.returncode}. See the error above.")
+    process = subprocess.Popen(
+        [sys.executable, "-u"] + args, cwd=HERE,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, bufsize=1,
+    )
+    for line in process.stdout:
+        print(line.rstrip("\n"), flush=True)
+    process.wait()
+    if process.returncode != 0:
+        fail(f"'{args[0]}' exited with code {process.returncode}. See the error above.")
 
 
 def check_inputs(phishing_file: str, tranco_file: str) -> None:
@@ -88,7 +122,13 @@ def main(argv=None) -> int:
                              "(faster, but reintroduces the structural artifact)")
     parser.add_argument("--recrawl", action="store_true",
                         help="crawl again even if data/legit_urls.txt already exists")
+    parser.add_argument("--log", default="output.txt",
+                        help="transcript file written alongside the console output")
     args = parser.parse_args(argv)
+
+    tee = Tee(os.path.join(HERE, args.log))
+    sys.stdout = tee
+    print(f"Transcript: {args.log}  (this window shows the same thing)")
 
     crawled = os.path.join("data", "legit_urls.txt")
     total = 3 if args.no_crawl else 4
@@ -111,6 +151,8 @@ def main(argv=None) -> int:
             print(f"  {crawled} already exists with {count:,} URLs. Reusing it.")
             print("  Pass --recrawl to collect them again.")
         else:
+            print(f"  Visiting {args.limit_domains} websites. This takes a few\n"
+                  f"  minutes and prints progress as it goes. Leave it running.\n")
             run(["crawl_legit.py",
                  "--tranco-file", args.tranco_file,
                  "--limit-domains", str(args.limit_domains),
