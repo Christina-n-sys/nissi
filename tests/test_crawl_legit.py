@@ -301,3 +301,75 @@ def test_network_errors_are_caught():
     urls, status = crawl_domain(_Broken(), "a.com", 3, 5, True, False)
     assert urls == []
     assert status.startswith("error:")
+
+
+# --- Robustness against bad list entries -----------------------------------
+
+from crawl_legit import is_valid_hostname  # noqa: E402
+
+
+class TestHostnameValidation:
+    """Tranco carries occasional malformed entries; they must never reach requests."""
+
+    @pytest.mark.parametrize("host", [
+        "google.com", "amazon.in", "www.hdfc.co.in", "a-b.example.org",
+    ])
+    def test_accepts_real_hostnames(self, host):
+        assert is_valid_hostname(host) is True
+
+    @pytest.mark.parametrize("host", [
+        ".cmediahub.ru",      # the entry that ended a real crawl
+        "trailing.dot.",
+        "a..b.com",
+        "",
+        "no-dot",
+        "has space.com",
+        "x" * 64 + ".com",    # label longer than 63 characters
+        "x" * 300 + ".com",   # hostname longer than 253 characters
+    ])
+    def test_rejects_malformed_hostnames(self, host):
+        assert is_valid_hostname(host) is False
+
+
+class TestFailuresAreContained:
+    """A single site must never be able to end a crawl of hundreds."""
+
+    def test_non_requests_exception_is_reported_not_raised(self):
+        import urllib3
+
+        class _Exploding:
+            def get(self, url, **kwargs):
+                raise urllib3.exceptions.LocationParseError("'.bad.ru'")
+
+            def close(self):
+                pass
+
+        urls, status = crawl_domain(_Exploding(), ".bad.ru", 3, 5, True, False)
+        assert urls == []
+        assert status == "error:LocationParseError"
+
+    def test_arbitrary_exception_is_contained(self):
+        class _Broken:
+            def get(self, url, **kwargs):
+                raise ValueError("anything at all")
+
+            def close(self):
+                pass
+
+        urls, status = crawl_domain(_Broken(), "a.com", 3, 5, True, False)
+        assert urls == []
+        assert status == "error:ValueError"
+
+    def test_robots_failure_is_contained(self):
+        class _RobotsExplodes:
+            def get(self, url, **kwargs):
+                if url.endswith("robots.txt"):
+                    raise RuntimeError("boom")
+                return _Response(HOMEPAGE_HTML)
+
+            def close(self):
+                pass
+
+        urls, status = crawl_domain(_RobotsExplodes(), "a.com", 3, 5, True, False)
+        assert urls == []
+        assert status.startswith("error:")

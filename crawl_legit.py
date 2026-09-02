@@ -216,14 +216,25 @@ def robots_allows(session, domain: str, timeout: float) -> bool:
 
 def crawl_domain(session, domain: str, links_per_domain: int, timeout: float,
                  respect_robots: bool, include_homepage: bool) -> tuple:
-    """Fetch one homepage and return (urls, status) for reporting."""
-    if respect_robots and not robots_allows(session, domain, timeout):
-        return [], "robots-disallowed"
+    """Fetch one homepage and return (urls, status) for reporting.
+
+    Every failure is reported as a status rather than raised. A crawl visits
+    hundreds of third-party sites, and one of them must never be able to end
+    the run: the requests stack also raises urllib3 errors that are not
+    RequestException subclasses, such as LocationParseError on a malformed
+    hostname, so the guards here are deliberately broad.
+    """
+    if respect_robots:
+        try:
+            if not robots_allows(session, domain, timeout):
+                return [], "robots-disallowed"
+        except Exception as exc:
+            return [], f"error:{type(exc).__name__}"
 
     url = f"https://{domain}"
     try:
         response = session.get(url, timeout=timeout, allow_redirects=True)
-    except requests.RequestException as exc:
+    except Exception as exc:
         return [], f"error:{type(exc).__name__}"
 
     if response.status_code >= 400:
@@ -231,8 +242,11 @@ def crawl_domain(session, domain: str, links_per_domain: int, timeout: float,
     if "html" not in response.headers.get("Content-Type", "").lower():
         return [], "not-html"
 
-    final_url = response.url
-    links = select_links(response.text, final_url, domain, links_per_domain)
+    try:
+        final_url = response.url
+        links = select_links(response.text, final_url, domain, links_per_domain)
+    except Exception as exc:
+        return [], f"error:{type(exc).__name__}"
 
     urls = []
     if include_homepage:
@@ -244,14 +258,34 @@ def crawl_domain(session, domain: str, links_per_domain: int, timeout: float,
     return urls, "ok"
 
 
+def is_valid_hostname(host: str) -> bool:
+    """True when ``host`` is a syntactically usable hostname.
+
+    Tranco carries occasional malformed entries, such as ".cmediahub.ru" with a
+    leading dot. Passing one to requests raises a urllib3 LocationParseError,
+    so they are rejected here rather than at the socket.
+    """
+    if not host or len(host) > 253 or "." not in host:
+        return False
+    if any(c in host for c in " \t/@?#:_"):
+        return False
+    labels = host.split(".")
+    return all(0 < len(label) <= 63 for label in labels)
+
+
 def load_domains(path: str, limit: int) -> List[str]:
-    """Read domains from a Tranco file, reusing the dataset builder's reader."""
+    """Read domains from a Tranco file, skipping malformed hostnames."""
     urls = read_legit_file(path, limit)
-    domains = []
+    domains, skipped = [], 0
     for url in urls:
-        host = urlparse(url).netloc or url
-        if host:
-            domains.append(host.lower())
+        host = (urlparse(url).netloc or url).strip().lower()
+        if is_valid_hostname(host):
+            domains.append(host)
+        else:
+            skipped += 1
+    if skipped:
+        print(f"  skipped {skipped} malformed hostname(s) from the list",
+              file=sys.stderr)
     return domains
 
 
@@ -272,17 +306,43 @@ def main(argv=None) -> int:
                         help="also record each site's homepage (adds bare-domain rows back)")
     parser.add_argument("--ignore-robots", action="store_true",
                         help="do not fetch or honour robots.txt")
+    parser.add_argument("--no-resume", dest="resume", action="store_false",
+                        help="start over instead of continuing an interrupted crawl")
     args = parser.parse_args(argv)
 
     domains = load_domains(args.tranco_file, args.limit_domains)
     if not domains:
         raise SystemExit(f"No domains read from {args.tranco_file}")
 
+    os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
+
+    # Resume rather than restart: an interrupted crawl keeps what it collected,
+    # and a re-run visits only the domains still missing.
+    already_done: Set[str] = set()
+    if args.resume and os.path.exists(args.out):
+        with open(args.out, encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if line:
+                    already_done.add(registered_domain(line))
+        remaining = [d for d in domains
+                     if registered_domain(f"https://{d}") not in already_done]
+        if already_done:
+            print(f"Resuming: {len(already_done):,} domains already collected, "
+                  f"{len(remaining):,} to go", file=sys.stderr)
+        domains = remaining
+    else:
+        # Fresh run: start from a clean file so counts match the report.
+        open(args.out, "w", encoding="utf-8").close()
+
+    if not domains:
+        print("Nothing left to crawl; the output file already covers every domain.",
+              file=sys.stderr)
+        return 0
+
     print(f"Crawling {len(domains):,} domains, "
           f"up to {args.links_per_domain} links each", file=sys.stderr)
     print(f"robots.txt: {'ignored' if args.ignore_robots else 'honoured'}", file=sys.stderr)
-
-    os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     lock = threading.Lock()
     statuses: dict = {}
     written = 0
@@ -290,6 +350,15 @@ def main(argv=None) -> int:
     from concurrent.futures import ThreadPoolExecutor
 
     def work(domain: str):
+        nonlocal written
+        try:
+            _work(domain)
+        except Exception as exc:  # never let one domain kill the pool
+            with lock:
+                key = f"error:{type(exc).__name__}"
+                statuses[key] = statuses.get(key, 0) + 1
+
+    def _work(domain: str):
         nonlocal written
         session = build_session()
         try:
@@ -316,9 +385,6 @@ def main(argv=None) -> int:
                 pct = 100 * done / len(domains)
                 print(f"  {done}/{len(domains)} domains ({pct:.0f}%), "
                       f"{written} URLs collected", file=sys.stderr, flush=True)
-
-    # Start each run from a clean file so counts match the report.
-    open(args.out, "w", encoding="utf-8").close()
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         list(pool.map(work, domains))
