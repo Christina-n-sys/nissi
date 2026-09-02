@@ -6,3 +6,7 @@ data/raw/
 results/
 data/urls.csv
 data/legit_urls.txt
+paper/node_modules/
+paper/package-lock.json
+paper/package.json
+paper/*.pdf
