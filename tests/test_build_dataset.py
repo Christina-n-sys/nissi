@@ -66,7 +66,7 @@ def test_domain_duplicates_are_dropped_by_default():
 
 
 def test_domain_dedup_can_be_disabled():
-    rows, stats = build_rows(["http://a.com/x", "http://a.com/y"], [], dedup_domain=False)
+    rows, stats = build_rows(["http://a.com/x", "http://a.com/y"], [], dedup_domain_scope="none")
     assert stats["dropped_domain_duplicate"] == 0
     assert len(rows) == 2
 
@@ -241,3 +241,40 @@ class TestArchiveHandling:
         path = tmp_path / "top-1m.csv"
         path.write_text("".join(f"{i},site{i}.com\n" for i in range(1, 51)))
         assert len(read_legit_file(str(path), 10)) == 10
+
+
+# --- Per-class domain deduplication ---------------------------------------
+
+class TestDedupDomainScope:
+    """Crawled legitimate URLs need several paths per domain; phishing does not."""
+
+    LEGIT = ["https://a.com/one", "https://a.com/two", "https://b.com/three"]
+    PHISH = ["http://evil.com/x", "http://evil.com/y"]
+
+    def test_both_collapses_every_class(self):
+        rows, _ = build_rows(self.PHISH, self.LEGIT, dedup_domain_scope="both")
+        assert sum(1 for r in rows if r["label"] == 0) == 2   # a.com, b.com
+        assert sum(1 for r in rows if r["label"] == 1) == 1   # evil.com
+
+    def test_phishing_scope_keeps_legitimate_paths(self):
+        rows, _ = build_rows(self.PHISH, self.LEGIT, dedup_domain_scope="phishing")
+        assert sum(1 for r in rows if r["label"] == 0) == 3   # all three kept
+        assert sum(1 for r in rows if r["label"] == 1) == 1   # still collapsed
+
+    def test_none_keeps_everything(self):
+        rows, _ = build_rows(self.PHISH, self.LEGIT, dedup_domain_scope="none")
+        assert len(rows) == 5
+
+    def test_exact_duplicates_are_still_removed_under_every_scope(self):
+        for scope in ("both", "phishing", "none"):
+            rows, stats = build_rows(
+                [], ["https://a.com/one", "https://a.com/one/"],
+                dedup_domain_scope=scope,
+            )
+            assert stats["dropped_exact_duplicate"] == 1, scope
+            assert len(rows) == 1, scope
+
+    def test_default_scope_is_both(self):
+        assert build_rows(self.PHISH, self.LEGIT) == build_rows(
+            self.PHISH, self.LEGIT, dedup_domain_scope="both"
+        )

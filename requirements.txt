@@ -5,8 +5,9 @@
 streamlit>=1.30
 pandas>=2.0
 
-# Dataset builder (build_dataset.py)
+# Dataset builder (build_dataset.py) and crawler (crawl_legit.py)
 tldextract>=5.0
+requests>=2.31
 
 # Tests
 pytest>=8.0

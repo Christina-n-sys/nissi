@@ -203,7 +203,12 @@ def read_legit_file(path: str, limit: int) -> List[str]:
 
     lines = text.splitlines()
     first_line = lines[0] if lines else ""
-    if "," in first_line:
+    # A URL list wins over the Tranco reader even when a URL contains a comma,
+    # which is legal and appears in crawled query strings.
+    if first_line.strip().lower().startswith(("http://", "https://")):
+        urls = _read_url_lines(text)
+        urls = urls[:limit] if limit else urls
+    elif "," in first_line:
         urls = _read_tranco_rows(text, limit)
     else:
         urls = _read_url_lines(text)
@@ -239,10 +244,16 @@ def build(
     legit_urls: Iterable[str],
     phishing_source: str,
     legit_source: str,
-    dedup_domain: bool = True,
+    dedup_domain_scope: str = "both",
     drop_cross_class: bool = True,
 ) -> Tuple[List[dict], dict]:
     """Combine, deduplicate and label the two URL lists.
+
+    ``dedup_domain_scope`` selects which classes are reduced to one URL per
+    registered domain: ``"both"``, ``"phishing"`` or ``"none"``. Phishing feeds
+    list many URLs per compromised host, so collapsing them stops one host
+    dominating the class. Crawled legitimate URLs are the opposite case: several
+    paths per domain are the point, so ``"phishing"`` keeps that diversity.
 
     Returns the surviving rows and a stats dict describing what was dropped.
     """
@@ -304,7 +315,9 @@ def build(
             stats["dropped_exact_duplicate"] += 1
             continue
         seen_urls.add(row["_key"])
-        if dedup_domain:
+        if dedup_domain_scope == "both" or (
+            dedup_domain_scope == "phishing" and row["label"] == 1
+        ):
             if row["registered_domain"] in seen_domains:
                 stats["dropped_domain_duplicate"] += 1
                 continue
@@ -393,8 +406,12 @@ def main(argv=None) -> int:
                         help="how many Tranco domains to take (0 = all)")
     parser.add_argument("--out", default="data/urls.csv")
     parser.add_argument("--cache-dir", default="data/raw")
+    parser.add_argument("--dedup-domain-scope", default="both",
+                        choices=["both", "phishing", "none"],
+                        help="which classes to reduce to one URL per registered "
+                             "domain (use 'phishing' with crawled legitimate URLs)")
     parser.add_argument("--no-dedup-domain", action="store_true",
-                        help="keep every URL, even several per registered domain")
+                        help="alias for --dedup-domain-scope none")
     parser.add_argument("--keep-cross-class", action="store_true",
                         help="report but do not drop domains appearing in both classes")
     parser.add_argument("--balance", action="store_true",
@@ -426,9 +443,10 @@ def main(argv=None) -> int:
         legit = fetch_tranco(args.cache_dir, args.limit_legit)
         legit_source = "tranco"
 
+    scope = "none" if args.no_dedup_domain else args.dedup_domain_scope
     rows, stats = build(
         phishing, legit, phishing_source, legit_source,
-        dedup_domain=not args.no_dedup_domain,
+        dedup_domain_scope=scope,
         drop_cross_class=not args.keep_cross_class,
     )
 
