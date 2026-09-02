@@ -160,6 +160,24 @@ const figCaption = (text) => new Paragraph({
   children: [new TextRun({ text, font: FONT, size: SMALL })],
 });
 
+
+// Figures are numbered by document order, so inserting or moving one cannot
+// leave a stale "Fig. N" behind.
+let figureCounter = 0;
+function figure(file, captionText, widthPx = COL_PX) {
+  figureCounter += 1;
+  return [
+    figureImage(file, widthPx),
+    new Paragraph({
+      alignment: AlignmentType.LEFT,
+      spacing: { after: 140 },
+      children: [new TextRun({
+        text: `Fig. ${figureCounter}.  ${captionText}`, font: FONT, size: SMALL,
+      })],
+    }),
+  ];
+}
+
 const ref = (n, text) => new Paragraph({
   alignment: AlignmentType.JUSTIFIED,
   spacing: { after: 40 },
@@ -347,13 +365,23 @@ P(body("Two gaps motivate the present work. First, the lexical component of thes
 // III. System design ---------------------------------------------------------
 P(sectionHead("III.  Detector Design"));
 
+P(body("The system is organised in four layers over a shared test suite "
+  + "(Fig. 1). Every interface calls one scoring module, so a URL receives one "
+  + "verdict whichever front-end asked; the dataset pipeline and evaluation "
+  + "harness sit beneath it and are exercised by the same tests.", { noIndent: true }));
+
+figure("fig2_system.png", "Project architecture. Every interface calls one "
+  + "scoring module, so a URL has one verdict whichever front-end asked. The "
+  + "data pipeline and the evaluation harness sit below it and are exercised by "
+  + "the same test suite; the cross-cutting column attaches to every layer and "
+  + "is owned by none.", 344).forEach(P);
+
 P(subHead("A.  Scoring function"));
 P(body("The detector maps a URL to a bounded integer score. Each rule that matches "
   + "contributes a fixed weight, weights are summed, and the total is clamped to a "
   + "maximum of 100:", { noIndent: true }));
 P(equation("S(u) = min( Σ wᵢ · δᵢ(u),  100 )"));
-P(figureImage("fig1_architecture.png", 300));
-P(figCaption("Fig. 1.  Detection pipeline. Lexical and structural rules contribute weights to a single bounded score, which is banded and returned together with the identity of every rule that fired."));
+figure("fig1_architecture.png", "Detection pipeline. Lexical and structural rules contribute weights to a single bounded score, which is banded and returned together with the identity of every rule that fired.", 300).forEach(P);
 P(body("where δᵢ(u) is 1 when rule i fires on URL u and 0 otherwise, and "
   + "wᵢ is that rule's weight. The formulation is intentionally additive and "
   + "monotone: no rule can reduce another's contribution, so the effect of any "
@@ -415,29 +443,25 @@ P(body("The detector returns, alongside the score and band, the identity and wei
   + "attribution method, and it holds exactly rather than approximately.",
   { noIndent: true }));
 
-P(figureImage("fig2_dashboard_phishing.png", 344));
-P(figCaption("Fig. 2.  Dashboard classifying a phishing URL that combines "
+figure("fig2_dashboard_phishing.png", "Dashboard classifying a phishing URL that combines "
   + "English lures with the Hindi/Telugu terms suraksha and khata. The verdict "
   + "is accompanied by every rule that fired and its weight, and those weights "
-  + "sum to the reported score of 90."));
+  + "sum to the reported score of 90.", 344).forEach(P);
 
-P(figureImage("fig3_dashboard_legitimate.png", 344));
-P(figCaption("Fig. 3.  The same interface on a legitimate URL. Only long_url "
+figure("fig3_dashboard_legitimate.png", "The same interface on a legitimate URL. Only long_url "
   + "fires, giving a score of 10 and a Low Risk band. The single fired rule is "
   + "still itemised, so a user can see that the score reflects length alone and "
-  + "no phishing vocabulary was matched."));
+  + "no phishing vocabulary was matched.", 344).forEach(P);
 
-P(figureImage("fig4_cli.png", 344));
-P(figCaption("Fig. 4.  Command-line output for the same two URLs. The "
+figure("fig4_cli.png", "Command-line output for the same two URLs. The "
   + "command-line and dashboard front-ends call one scoring module, so their "
   + "verdicts agree by construction; before the consolidation described in "
-  + "Section IV-A they did not."));
+  + "Section IV-A they did not.", 344).forEach(P);
 
-P(figureImage("fig5_hashing.png", 344));
-P(figCaption("Fig. 5.  The accompanying file-integrity tool, which computes "
+figure("fig5_hashing.png", "The accompanying file-integrity tool, which computes "
   + "MD5, SHA-1 or SHA-256 digests and compares a generated digest against a "
   + "reference. It is independent of the detector and is included for "
-  + "completeness."));
+  + "completeness.", 344).forEach(P);
 
 P(subHead("F.  Matching modes"));
 P(body("Two matching modes are provided. Substring matching, the default, reports a "
@@ -640,12 +664,9 @@ P(table([1900, 840, 840, 840, 810], [
 ]));
 P(note("Fill from results/match_mode.csv."));
 
-P(figureImage("fig6_threshold_sweep.png", 344));
-P(figCaption("Fig. 6.  Precision, recall and F1 across the full threshold range. The dotted line marks the operating threshold of 60."));
-P(figureImage("fig7_ablation.png", 344));
-P(figCaption("Fig. 7.  Rule-group ablation. The gap between the full rule set and the vocabulary-only variant is the contribution of the multilingual terms."));
-P(figureImage("fig8_per_rule.png", 344));
-P(figCaption("Fig. 8.  Firing rate of each rule within each class. A rule that fires often on legitimate URLs is a source of false positives."));
+figure("fig6_threshold_sweep.png", "Precision, recall and F1 across the full threshold range. The dotted line marks the operating threshold of 60.", 344).forEach(P);
+figure("fig7_ablation.png", "Rule-group ablation. The gap between the full rule set and the vocabulary-only variant is the contribution of the multilingual terms.", 344).forEach(P);
+figure("fig8_per_rule.png", "Firing rate of each rule within each class. A rule that fires often on legitimate URLs is a source of false positives.", 344).forEach(P);
 
 P(subHead("A.  Interpretation"));
 P(body("Three questions should be answered from the tables above, and the answers "

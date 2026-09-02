@@ -130,6 +130,82 @@ def figure_architecture() -> None:
     save(fig, "fig1_architecture")
 
 
+
+# --- Figure 2: project architecture ----------------------------------------
+
+def figure_system() -> None:
+    """Layered view of the whole project, not just the scoring path."""
+    fig, ax = plt.subplots(figsize=(COL_W, 4.35))
+    ax.set_xlim(0, 11.6)
+    ax.set_ylim(0, 12.4)
+    ax.axis("off")
+
+    def layer(y, h, x0, x1, title, detail, fill, edge):
+        ax.add_patch(FancyBboxPatch(
+            (x0, y), x1 - x0, h,
+            boxstyle="round,pad=0.06,rounding_size=0.16",
+            linewidth=0.9, edgecolor=edge, facecolor=fill, zorder=2))
+        cx = (x0 + x1) / 2
+        ax.text(cx, y + h - 0.36, title, ha="center", va="center",
+                fontsize=7.4, fontweight="bold", color=INK, zorder=3)
+        ax.text(cx, y + h / 2 - 0.30, detail, ha="center", va="center",
+                fontsize=6.4, color="#3a3a38", zorder=3, linespacing=1.45)
+
+    def flow(y0, y1, x=3.9, label=None, up=False):
+        ax.add_patch(FancyArrowPatch(
+            (x, y0), (x, y1), arrowstyle="-|>", mutation_scale=9,
+            linewidth=0.9, color=MUTED, zorder=1))
+        if label:
+            ax.text(x + 0.18, (y0 + y1) / 2, label, ha="left", va="center",
+                    fontsize=5.9, color=MUTED, style="italic", zorder=3)
+
+    MAIN_L, MAIN_R = 0.15, 7.30
+
+    layer(10.2, 2.0, MAIN_L, MAIN_R, "Interfaces",
+          "main.py · gui_app.py · app.py\nCLI · Tkinter · Streamlit",
+          "#eaf2fd", BLUE)
+
+    layer(6.95, 2.35, MAIN_L, MAIN_R, "Detection Core — detector.py",
+          "33 terms · EN · HI · TA · TE\nfour structural rules · weighted sum\n"
+          "banding · every fired rule",
+          "#e8f7f1", GREEN)
+
+    layer(3.75, 2.35, MAIN_L, MAIN_R, "Evaluation — evaluate.py",
+          "confusion matrix · sweep\nablation · per-rule rates\n"
+          "artifact diagnostic",
+          "#fdeee7", ORANGE)
+
+    layer(0.35, 2.45, MAIN_L, MAIN_R, "Data Pipeline",
+          "crawl_legit.py → build_dataset.py\nOpenPhish / PhishTank · Tranco\n"
+          "dedup: exact + domain",
+          "#ffffff", "#c3c2b7")
+
+    flow(10.2, 9.30, x=3.7, label="score_url(url)")
+    flow(6.95, 6.10, x=3.7, label="scores")
+    flow(2.80, 3.75, x=3.7, label="data/urls.csv")
+
+    # Cross-cutting column: attaches to every layer, owned by none.
+    ax.add_patch(FancyBboxPatch(
+        (7.60, 0.35), 3.85, 11.85,
+        boxstyle="round,pad=0.06,rounding_size=0.16",
+        linewidth=0.9, edgecolor="#9a97c9", facecolor="#f0eefb",
+        linestyle="--", zorder=2))
+    ax.text(9.52, 11.55, "Cross-cutting", ha="center", va="center",
+            fontsize=7.0, fontweight="bold", color=INK, zorder=3)
+    ax.text(9.52, 6.4,
+            "run_pipeline.py\nruns every stage\nin order\n\n"
+            "193 pytest tests\ncover the scorer,\ndeduplication\nand the metrics\n\n"
+            "make_figures.py\ncapture_outputs.py\nrebuild every\nfigure from source",
+            ha="center", va="center", fontsize=6.0, color="#3a3a38",
+            zorder=3, linespacing=1.7)
+    for y in (11.2, 8.1, 4.9, 1.6):
+        ax.add_patch(FancyArrowPatch(
+            (7.60, y), (7.33, y), arrowstyle="-", linewidth=0.7,
+            color="#9a97c9", linestyle=(0, (2, 2)), zorder=1))
+
+    save(fig, "fig2_system")
+
+
 # --- Figure 6: threshold sweep ---------------------------------------------
 
 def figure_threshold_sweep() -> bool:
@@ -246,8 +322,10 @@ def figure_per_rule(top: int = 12) -> bool:
 
 
 def main() -> int:
-    print("Figure 1: system architecture")
+    print("Figure 1: detection pipeline")
     figure_architecture()
+    print("Figure 2: project architecture")
+    figure_system()
 
     produced = []
     print("\nResult figures (require results/):")
