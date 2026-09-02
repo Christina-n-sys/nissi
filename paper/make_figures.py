@@ -226,16 +226,26 @@ def figure_threshold_sweep() -> bool:
                 marker=marker, markersize=3.2, linewidth=1.4, zorder=3)
 
     ax.axvline(60, color=MUTED, linewidth=0.8, linestyle=":", zorder=2)
-    ax.text(61, 0.04, "operating\nthreshold", fontsize=6.2, color=MUTED,
+    ax.text(61, 0.55, "operating\nthreshold", fontsize=6.2, color=MUTED,
             ha="left", va="bottom", linespacing=1.2)
+
+    # Mark the best operating point: the gap between it and the configured
+    # threshold is the finding.
+    f1 = [float(r["f1"]) for r in rows]
+    best = max(range(len(f1)), key=lambda i: f1[i])
+    ax.annotate(f"best F1 = {f1[best]:.2f}\nat threshold {x[best]}",
+                xy=(x[best], f1[best]), xytext=(x[best] + 14, f1[best] + 0.16),
+                fontsize=6.2, color=INK, linespacing=1.25,
+                arrowprops=dict(arrowstyle="-", linewidth=0.7, color=MUTED))
 
     ax.set_xlabel("Score threshold")
     ax.set_ylabel("Score")
     ax.set_xticks(range(0, 101, 20))
-    ax.set_ylim(-0.03, 1.05)
+    ax.set_ylim(-0.03, 1.20)
     tidy(ax)
-    ax.legend(frameon=False, loc="lower left", ncol=3,
-              columnspacing=1.0, handlelength=2.2, borderaxespad=0.2)
+    ax.legend(frameon=False, ncol=3, loc="lower center",
+              bbox_to_anchor=(0.5, 1.01), columnspacing=1.4, handlelength=2.0,
+              borderaxespad=0.0)
     save(fig, "fig6_threshold_sweep")
     return True
 
@@ -250,6 +260,16 @@ def figure_ablation() -> bool:
     labels = {"full": "All rules", "keywords_only": "Vocabulary\nonly",
               "structural_only": "Structural\nonly"}
     order = ["full", "keywords_only", "structural_only"]
+
+    # The file may hold the ablation at several thresholds. Plot the one that
+    # discriminates: a threshold where every variant scores zero shows nothing.
+    if rows and "threshold" in rows[0]:
+        by_threshold = {}
+        for row in rows:
+            by_threshold.setdefault(row["threshold"], []).append(row)
+        rows = max(by_threshold.values(),
+                   key=lambda group: max(float(r["f1"]) for r in group))
+
     rows = sorted(rows, key=lambda r: order.index(r["variant"])
                   if r["variant"] in order else 99)
 

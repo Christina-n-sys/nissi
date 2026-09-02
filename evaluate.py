@@ -295,13 +295,36 @@ def main(argv=None) -> int:
     _table("Threshold sweep", sweep,
            ["threshold", "tp", "fp", "tn", "fn", "precision", "recall", "f1"])
 
-    abl = ablation(rows, labels, args.threshold, args.match_mode)
-    _table("Ablation by rule group", abl,
-           ["variant", "tp", "fp", "tn", "fn", "accuracy", "precision", "recall", "f1"])
+    # The operating threshold can be so badly calibrated that every variant
+    # scores zero, which makes the ablation uninformative. Report it at the
+    # best-F1 threshold as well, where the comparison actually discriminates.
+    best = max(sweep, key=lambda r: (r["f1"], -r["threshold"]))
+    best_threshold = int(best["threshold"])
+    print(f"\nBest F1 on the sweep: {best['f1']:.4f} at threshold {best_threshold}"
+          f"  (operating threshold is {args.threshold})")
+    if best_threshold != args.threshold:
+        print("  The operating threshold is not the best available; both are "
+              "reported below.")
 
-    modes = match_mode_comparison(rows, labels, args.threshold)
-    _table("Substring vs token matching", modes,
-           ["match_mode", "tp", "fp", "tn", "fn", "accuracy", "precision", "recall", "f1"])
+    thresholds = [args.threshold]
+    if best_threshold != args.threshold:
+        thresholds.append(best_threshold)
+
+    abl_rows, mode_rows = [], []
+    for threshold in thresholds:
+        for row in ablation(rows, labels, threshold, args.match_mode):
+            abl_rows.append({"threshold": threshold, **row})
+        for row in match_mode_comparison(rows, labels, threshold):
+            mode_rows.append({"threshold": threshold, **row})
+
+    _table("Ablation by rule group", abl_rows,
+           ["threshold", "variant", "tp", "fp", "tn", "fn", "accuracy",
+            "precision", "recall", "f1"])
+
+    _table("Substring vs token matching", mode_rows,
+           ["threshold", "match_mode", "tp", "fp", "tn", "fn", "accuracy",
+            "precision", "recall", "f1"])
+    abl, modes = abl_rows, mode_rows
 
     rules = per_rule_stats(results, labels)
     _table("Per-rule statistics (top 25 by support)", rules[:25],
