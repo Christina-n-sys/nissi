@@ -2,7 +2,14 @@
 
 import pytest
 
-from build_dataset import balance, build, normalise, registered_domain
+from build_dataset import (
+    balance,
+    build,
+    normalise,
+    read_legit_file,
+    read_phishing_file,
+    registered_domain,
+)
 
 
 def build_rows(phishing, legit, **kwargs):
@@ -162,3 +169,75 @@ def test_balance_truncates_the_majority_class():
     balanced = balance(rows)
     assert sum(1 for r in balanced if r["label"] == 1) == 1
     assert sum(1 for r in balanced if r["label"] == 0) == 1
+
+
+# --- Bad download detection ------------------------------------------------
+
+class TestBadDownloads:
+    """A feed saved without following a redirect must fail with a clear message."""
+
+    def _write(self, tmp_path, name, payload):
+        path = tmp_path / name
+        path.write_bytes(payload)
+        return str(path)
+
+    def test_html_redirect_page_named_zip_is_rejected(self, tmp_path):
+        path = self._write(tmp_path, "top-1m.csv.zip",
+                           b"<html><head><title>Redirecting</title></head></html>")
+        with pytest.raises(SystemExit, match="HTML page"):
+            read_legit_file(path, 100)
+
+    def test_rejection_message_names_the_curl_flag(self, tmp_path):
+        path = self._write(tmp_path, "top-1m.csv.zip", b"<!DOCTYPE html><html></html>")
+        with pytest.raises(SystemExit, match="-L"):
+            read_legit_file(path, 100)
+
+    def test_empty_download_is_rejected(self, tmp_path):
+        path = self._write(tmp_path, "feed.txt", b"")
+        with pytest.raises(SystemExit, match="empty"):
+            read_phishing_file(path)
+
+    def test_truncated_archive_is_rejected(self, tmp_path):
+        path = self._write(tmp_path, "top-1m.csv.zip", b"\x00\x01\x02not-a-zip")
+        with pytest.raises(SystemExit, match="not one"):
+            read_legit_file(path, 100)
+
+    def test_phishing_feed_without_urls_is_rejected(self, tmp_path):
+        path = self._write(tmp_path, "feed.txt", b"error: rate limited\ntry again later\n")
+        with pytest.raises(SystemExit, match="no http"):
+            read_phishing_file(path)
+
+
+class TestArchiveHandling:
+    """Compression is detected by magic bytes, not by file extension."""
+
+    def _zip_of(self, tmp_path, name, inner_name, text):
+        import zipfile as zf
+        path = tmp_path / name
+        with zf.ZipFile(path, "w") as archive:
+            archive.writestr(inner_name, text)
+        return str(path)
+
+    def test_real_zip_is_read(self, tmp_path):
+        path = self._zip_of(tmp_path, "t.zip", "top-1m.csv", "1,google.com\n2,youtube.com\n")
+        assert read_legit_file(path, 100) == ["https://google.com", "https://youtube.com"]
+
+    def test_plain_csv_is_read(self, tmp_path):
+        path = tmp_path / "top-1m.csv"
+        path.write_text("1,google.com\n2,youtube.com\n")
+        assert read_legit_file(str(path), 100) == ["https://google.com", "https://youtube.com"]
+
+    def test_zip_contents_win_over_a_misleading_extension(self, tmp_path):
+        path = self._zip_of(tmp_path, "looks_like.csv", "top-1m.csv", "1,google.com\n")
+        assert read_legit_file(path, 100) == ["https://google.com"]
+
+    def test_gzipped_phishing_feed_is_read(self, tmp_path):
+        import gzip as gz
+        path = tmp_path / "feed.txt.gz"
+        path.write_bytes(gz.compress(b"http://evil.com/login\n"))
+        assert read_phishing_file(str(path)) == ["http://evil.com/login"]
+
+    def test_limit_is_applied_to_legit_urls(self, tmp_path):
+        path = tmp_path / "top-1m.csv"
+        path.write_text("".join(f"{i},site{i}.com\n" for i in range(1, 51)))
+        assert len(read_legit_file(str(path), 10)) == 10

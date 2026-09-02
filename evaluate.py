@@ -212,6 +212,13 @@ def _has_path(url: str) -> bool:
 # --- I/O -------------------------------------------------------------------
 
 def load_dataset(path: str) -> List[dict]:
+    if not os.path.exists(path):
+        raise SystemExit(
+            f"{path} does not exist.\n"
+            "Build the dataset first, for example:\n"
+            "  python build_dataset.py --phishing-file feed.txt "
+            "--legit-file top-1m.csv.zip --balance"
+        )
     with open(path, newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
     if not rows:

@@ -120,34 +120,101 @@ def _read_tranco_rows(text: str, limit: int) -> List[str]:
     return urls
 
 
+ZIP_MAGIC = b"PK\x03\x04"
+GZIP_MAGIC = b"\x1f\x8b"
+
+
+class BadFeedError(SystemExit):
+    """A downloaded feed is not the file it claims to be."""
+
+
+def _looks_like_html(payload: bytes) -> bool:
+    head = payload[:512].lstrip().lower()
+    return head.startswith(b"<!doctype html") or head.startswith(b"<html") or b"<title" in head
+
+
+def _check_download(path: str, payload: bytes) -> None:
+    """Fail loudly when a feed is empty, truncated, or an HTML redirect page.
+
+    Downloading a redirecting URL without following it (``curl`` without
+    ``-L``) saves the redirect page under the expected filename, which
+    otherwise surfaces much later as an unrelated parse error.
+    """
+    if not payload.strip():
+        raise BadFeedError(f"{path} is empty — the download did not produce any data.")
+    if _looks_like_html(payload):
+        raise BadFeedError(
+            f"{path} contains an HTML page, not feed data ({len(payload):,} bytes).\n"
+            "The download most likely followed a redirect that was not saved.\n"
+            "Re-download with curl's -L flag, e.g.:\n"
+            "  curl -L -o top-1m.csv.zip https://tranco-list.eu/top-1m.csv.zip"
+        )
+
+
+def _decompress(path: str, payload: bytes) -> bytes:
+    """Transparently unwrap a zip or gzip payload, detected by magic bytes."""
+    if payload.startswith(ZIP_MAGIC):
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            names = [n for n in archive.namelist() if not n.endswith("/")]
+            if not names:
+                raise BadFeedError(f"{path} is an empty zip archive.")
+            return archive.read(names[0])
+    if payload.startswith(GZIP_MAGIC):
+        return gzip.decompress(payload)
+    if path.endswith((".zip", ".gz")):
+        raise BadFeedError(
+            f"{path} is named like a compressed archive but is not one "
+            f"({len(payload):,} bytes).\n"
+            "The download is probably incomplete or was saved without following a\n"
+            "redirect. Re-download with curl's -L flag, e.g.:\n"
+            "  curl -L -o top-1m.csv.zip https://tranco-list.eu/top-1m.csv.zip"
+        )
+    return payload
+
+
 def read_phishing_file(path: str) -> List[str]:
-    """Read a local phishing feed: plain text, .gz, or CSV with a ``url`` column."""
+    """Read a local phishing feed: plain text, .gz, .zip, or CSV with a ``url`` column."""
     with open(path, "rb") as handle:
         payload = handle.read()
-    if path.endswith(".gz"):
-        payload = gzip.decompress(payload)
-    text = payload.decode("utf-8", errors="replace")
+    _check_download(path, payload)
+    text = _decompress(path, payload).decode("utf-8", errors="replace")
 
-    first_line = text.splitlines()[0] if text.splitlines() else ""
+    lines = text.splitlines()
+    first_line = lines[0] if lines else ""
     if "," in first_line and "url" in first_line.lower():
-        return [row["url"] for row in csv.DictReader(io.StringIO(text)) if row.get("url")]
-    return _read_url_lines(text)
+        urls = [row["url"] for row in csv.DictReader(io.StringIO(text)) if row.get("url")]
+    else:
+        urls = _read_url_lines(text)
+
+    if not any(u.lower().startswith(("http://", "https://")) for u in urls):
+        raise BadFeedError(
+            f"{path} contains no http(s) URLs, so it is not a phishing feed.\n"
+            f"First line was: {first_line[:120]!r}"
+        )
+    return urls
 
 
 def read_legit_file(path: str, limit: int) -> List[str]:
     """Read a local Tranco-style ``rank,domain`` CSV (or a plain URL list)."""
     with open(path, "rb") as handle:
         payload = handle.read()
-    if path.endswith(".zip"):
-        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-            payload = archive.read(archive.namelist()[0])
-    text = payload.decode("utf-8", errors="replace")
+    _check_download(path, payload)
+    text = _decompress(path, payload).decode("utf-8", errors="replace")
 
-    first_line = text.splitlines()[0] if text.splitlines() else ""
+    lines = text.splitlines()
+    first_line = lines[0] if lines else ""
     if "," in first_line:
-        return _read_tranco_rows(text, limit)
-    urls = _read_url_lines(text)
-    return urls[:limit] if limit else urls
+        urls = _read_tranco_rows(text, limit)
+    else:
+        urls = _read_url_lines(text)
+        urls = urls[:limit] if limit else urls
+
+    if not urls:
+        raise BadFeedError(
+            f"{path} produced no domains.\n"
+            f"Expected Tranco's 'rank,domain' rows; first line was: {first_line[:120]!r}"
+        )
+    return urls
 
 
 # --- Normalisation and deduplication --------------------------------------
