@@ -130,7 +130,7 @@ def figure_architecture() -> None:
     save(fig, "fig1_architecture")
 
 
-# --- Figure 3: threshold sweep ---------------------------------------------
+# --- Figure 6: threshold sweep ---------------------------------------------
 
 def figure_threshold_sweep() -> bool:
     rows = read_csv("threshold_sweep.csv")
@@ -160,11 +160,11 @@ def figure_threshold_sweep() -> bool:
     tidy(ax)
     ax.legend(frameon=False, loc="lower left", ncol=3,
               columnspacing=1.0, handlelength=2.2, borderaxespad=0.2)
-    save(fig, "fig3_threshold_sweep")
+    save(fig, "fig6_threshold_sweep")
     return True
 
 
-# --- Figure 4: rule-group ablation -----------------------------------------
+# --- Figure 7: rule-group ablation -----------------------------------------
 
 def figure_ablation() -> bool:
     rows = read_csv("ablation.csv")
@@ -206,11 +206,11 @@ def figure_ablation() -> bool:
     ax.legend(frameon=False, ncol=3, loc="lower center",
               bbox_to_anchor=(0.5, 1.01), columnspacing=1.4, handlelength=1.4,
               borderaxespad=0.0)
-    save(fig, "fig4_ablation")
+    save(fig, "fig7_ablation")
     return True
 
 
-# --- Figure 5: per-rule firing rates ---------------------------------------
+# --- Figure 8: per-rule firing rates ---------------------------------------
 
 def figure_per_rule(top: int = 12) -> bool:
     rows = read_csv("per_rule.csv")
@@ -241,7 +241,7 @@ def figure_per_rule(top: int = 12) -> bool:
     tidy(ax, grid_axis="x")
     ax.legend(frameon=False, loc="lower right", handlelength=1.4,
               borderaxespad=0.2)
-    save(fig, "fig5_per_rule")
+    save(fig, "fig8_per_rule")
     return True
 
 
@@ -251,9 +251,9 @@ def main() -> int:
 
     produced = []
     print("\nResult figures (require results/):")
-    for name, fn in (("Figure 3: threshold sweep", figure_threshold_sweep),
-                     ("Figure 4: rule-group ablation", figure_ablation),
-                     ("Figure 5: per-rule firing rates", figure_per_rule)):
+    for name, fn in (("Figure 6: threshold sweep", figure_threshold_sweep),
+                     ("Figure 7: rule-group ablation", figure_ablation),
+                     ("Figure 8: per-rule firing rates", figure_per_rule)):
         print(f"{name}")
         if fn():
             produced.append(name)

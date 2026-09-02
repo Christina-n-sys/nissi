@@ -415,8 +415,29 @@ P(body("The detector returns, alongside the score and band, the identity and wei
   + "attribution method, and it holds exactly rather than approximately.",
   { noIndent: true }));
 
-P(figureImage("fig2_dashboard.png", 344));
-P(figCaption("Fig. 2.  Dashboard classifying a URL that combines English lures with the Hindi/Telugu terms suraksha and khata. The verdict is accompanied by every rule that fired and its weight, which sum to the reported score."));
+P(figureImage("fig2_dashboard_phishing.png", 344));
+P(figCaption("Fig. 2.  Dashboard classifying a phishing URL that combines "
+  + "English lures with the Hindi/Telugu terms suraksha and khata. The verdict "
+  + "is accompanied by every rule that fired and its weight, and those weights "
+  + "sum to the reported score of 90."));
+
+P(figureImage("fig3_dashboard_legitimate.png", 344));
+P(figCaption("Fig. 3.  The same interface on a legitimate URL. Only long_url "
+  + "fires, giving a score of 10 and a Low Risk band. The single fired rule is "
+  + "still itemised, so a user can see that the score reflects length alone and "
+  + "no phishing vocabulary was matched."));
+
+P(figureImage("fig4_cli.png", 344));
+P(figCaption("Fig. 4.  Command-line output for the same two URLs. The "
+  + "command-line and dashboard front-ends call one scoring module, so their "
+  + "verdicts agree by construction; before the consolidation described in "
+  + "Section IV-A they did not."));
+
+P(figureImage("fig5_hashing.png", 344));
+P(figCaption("Fig. 5.  The accompanying file-integrity tool, which computes "
+  + "MD5, SHA-1 or SHA-256 digests and compares a generated digest against a "
+  + "reference. It is independent of the detector and is included for "
+  + "completeness."));
 
 P(subHead("F.  Matching modes"));
 P(body("Two matching modes are provided. Substring matching, the default, reports a "
@@ -619,12 +640,12 @@ P(table([1900, 840, 840, 840, 810], [
 ]));
 P(note("Fill from results/match_mode.csv."));
 
-P(figureImage("fig3_threshold_sweep.png", 344));
-P(figCaption("Fig. 3.  Precision, recall and F1 across the full threshold range. The dotted line marks the operating threshold of 60."));
-P(figureImage("fig4_ablation.png", 344));
-P(figCaption("Fig. 4.  Rule-group ablation. The gap between the full rule set and the vocabulary-only variant is the contribution of the multilingual terms."));
-P(figureImage("fig5_per_rule.png", 344));
-P(figCaption("Fig. 5.  Firing rate of each rule within each class. A rule that fires often on legitimate URLs is a source of false positives."));
+P(figureImage("fig6_threshold_sweep.png", 344));
+P(figCaption("Fig. 6.  Precision, recall and F1 across the full threshold range. The dotted line marks the operating threshold of 60."));
+P(figureImage("fig7_ablation.png", 344));
+P(figCaption("Fig. 7.  Rule-group ablation. The gap between the full rule set and the vocabulary-only variant is the contribution of the multilingual terms."));
+P(figureImage("fig8_per_rule.png", 344));
+P(figCaption("Fig. 8.  Firing rate of each rule within each class. A rule that fires often on legitimate URLs is a source of false positives."));
 
 P(subHead("A.  Interpretation"));
 P(body("Three questions should be answered from the tables above, and the answers "
