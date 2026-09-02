@@ -9,5 +9,9 @@ pandas>=2.0
 tldextract>=5.0
 requests>=2.31
 
+# Figures (paper/make_figures.py)
+matplotlib>=3.7
+pillow>=10.0
+
 # Tests
 pytest>=8.0

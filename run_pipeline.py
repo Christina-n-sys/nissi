@@ -132,6 +132,16 @@ def main(argv=None) -> int:
     step(total, total, "Evaluating")
     run(["evaluate.py"])
 
+    # Figures are a convenience, not part of the measurement: a missing plotting
+    # dependency must not invalidate a completed evaluation.
+    print("\nGenerating figures...", flush=True)
+    figures = subprocess.run([sys.executable, os.path.join("paper", "make_figures.py")],
+                             cwd=HERE)
+    if figures.returncode != 0:
+        print("  Figures could not be generated (is matplotlib installed?).")
+        print("  The evaluation above is unaffected; run:")
+        print("    pip install matplotlib && python paper/make_figures.py")
+
     print("\n" + "=" * 66)
     print("PIPELINE COMPLETE")
     print("=" * 66)

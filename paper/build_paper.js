@@ -1,7 +1,7 @@
 const fs = require("fs");
 const {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-  WidthType, AlignmentType, BorderStyle, ShadingType, SectionType,
+  WidthType, AlignmentType, BorderStyle, ShadingType, SectionType, ImageRun,
   PageOrientation, convertInchesToTwip,
 } = require("docx");
 
@@ -109,6 +109,47 @@ function table(widths, rows) {
     })),
   });
 }
+
+// ---------- figures ----------
+
+const FIGDIR = __dirname + "/figures";
+const COL_PX = 330;   // one column at 96 dpi, matching COL_W inches
+
+// Embeds figures/<file> scaled to column width. When the figure has not been
+// generated yet, a visible placeholder is emitted instead of silently nothing.
+function figureImage(file, widthPx = COL_PX) {
+  const path = `${FIGDIR}/${file}`;
+  if (!fs.existsSync(path)) {
+    return new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 120, after: 40 },
+      shading: { type: ShadingType.CLEAR, fill: "FFF2CC", color: "auto" },
+      children: [new TextRun({
+        text: `[ ${file} not generated yet — run python paper/make_figures.py ]`,
+        font: FONT, size: SMALL, italics: true,
+      })],
+    });
+  }
+  const dim = require("child_process").execSync(
+    `python3 -c "from PIL import Image; w,h=Image.open('${path}').size; print(w,h)"`
+  ).toString().trim().split(" ").map(Number);
+  const height = Math.round(widthPx * (dim[1] / dim[0]));
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 120, after: 40 },
+    children: [new ImageRun({
+      type: "png",
+      data: fs.readFileSync(path),
+      transformation: { width: widthPx, height },
+    })],
+  });
+}
+
+const figCaption = (text) => new Paragraph({
+  alignment: AlignmentType.LEFT,
+  spacing: { after: 140 },
+  children: [new TextRun({ text, font: FONT, size: SMALL })],
+});
 
 const ref = (n, text) => new Paragraph({
   alignment: AlignmentType.JUSTIFIED,
@@ -302,6 +343,8 @@ P(body("The detector maps a URL to a bounded integer score. Each rule that match
   + "contributes a fixed weight, weights are summed, and the total is clamped to a "
   + "maximum of 100:", { noIndent: true }));
 P(equation("S(u) = min( Σ wᵢ · δᵢ(u),  100 )"));
+P(figureImage("fig1_architecture.png", 300));
+P(figCaption("Fig. 1.  Detection pipeline. Lexical and structural rules contribute weights to a single bounded score, which is banded and returned together with the identity of every rule that fired."));
 P(body("where δᵢ(u) is 1 when rule i fires on URL u and 0 otherwise, and "
   + "wᵢ is that rule's weight. The formulation is intentionally additive and "
   + "monotone: no rule can reduce another's contribution, so the effect of any "
@@ -362,6 +405,9 @@ P(body("The detector returns, alongside the score and band, the identity and wei
   + "This property is a consequence of the additive design rather than a post hoc "
   + "attribution method, and it holds exactly rather than approximately.",
   { noIndent: true }));
+
+P(figureImage("fig2_dashboard.png", 330));
+P(figCaption("Fig. 2.  Dashboard classifying a URL that combines English lures with the Hindi/Telugu terms suraksha and khata. The verdict is accompanied by every rule that fired and its weight, which sum to the reported score."));
 
 P(subHead("F.  Matching modes"));
 P(body("Two matching modes are provided. Substring matching, the default, reports a "
@@ -563,6 +609,13 @@ P(table([1770, 780, 780, 780, 760], [
    { t: PENDING, a: AlignmentType.CENTER }, { t: PENDING, a: AlignmentType.CENTER }],
 ]));
 P(note("Fill from results/match_mode.csv."));
+
+P(figureImage("fig3_threshold_sweep.png", 330));
+P(figCaption("Fig. 3.  Precision, recall and F1 across the full threshold range. The dotted line marks the operating threshold of 60."));
+P(figureImage("fig4_ablation.png", 330));
+P(figCaption("Fig. 4.  Rule-group ablation. The gap between the full rule set and the vocabulary-only variant is the contribution of the multilingual terms."));
+P(figureImage("fig5_per_rule.png", 330));
+P(figCaption("Fig. 5.  Firing rate of each rule within each class. A rule that fires often on legitimate URLs is a source of false positives."));
 
 P(subHead("A.  Interpretation"));
 P(body("Three questions should be answered from the tables above, and the answers "
