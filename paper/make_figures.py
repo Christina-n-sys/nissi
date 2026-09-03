@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Generate the paper's figures.
+"""Generate the paper's figures in black and white.
 
-Figure 1 (system architecture) needs no data and is always produced. The
-remaining figures are drawn from results/, so they appear only once the
-evaluation harness has actually been run; nothing here invents values.
+Figure 1 (the detection pipeline) needs no data and is always produced. The
+result figures are drawn from results/, so they appear only once the evaluation
+harness has actually been run; nothing here invents values.
 
-Output goes to paper/figures/ as both PDF (vector, for the manuscript) and PNG
-(300 dpi, for previewing).
+Everything is greyscale for print: series are distinguished by line style,
+marker and hatch rather than by hue, so no figure depends on colour.
 
 Usage::
 
@@ -17,24 +17,18 @@ from __future__ import annotations
 
 import csv
 import os
-import sys
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch  # noqa: E402
+from matplotlib.patches import FancyArrowPatch, Rectangle  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 FIGDIR = os.path.join(HERE, "figures")
 RESULTS = os.path.join(ROOT, "results")
 
-# Validated categorical slots (see the palette validator). Identity never rides
-# on hue alone here: every series also carries a line style, marker or hatch so
-# the figures survive greyscale printing.
-BLUE, ORANGE, GREEN = "#2a78d6", "#eb6834", "#1baf7a"
-INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
-SURFACE = "#fcfcfb"
+BLACK, GREY, LIGHT, WHITE = "#000000", "#555555", "#bbbbbb", "#ffffff"
 
 COL_W = 3.63   # IEEE single-column width, inches
 
@@ -43,21 +37,21 @@ plt.rcParams.update({
     "font.serif": ["Times New Roman", "DejaVu Serif"],
     "font.size": 8,
     "axes.labelsize": 8,
-    "axes.titlesize": 8,
     "legend.fontsize": 7,
     "xtick.labelsize": 7,
     "ytick.labelsize": 7,
-    "figure.facecolor": SURFACE,
-    "axes.facecolor": SURFACE,
-    "savefig.facecolor": SURFACE,
-    "axes.edgecolor": "#c3c2b7",
-    "axes.linewidth": 0.6,
-    "grid.color": GRID,
-    "grid.linewidth": 0.5,
-    "xtick.color": MUTED,
-    "ytick.color": MUTED,
-    "text.color": INK,
-    "axes.labelcolor": INK,
+    "figure.facecolor": WHITE,
+    "axes.facecolor": WHITE,
+    "savefig.facecolor": WHITE,
+    "axes.edgecolor": BLACK,
+    "axes.linewidth": 0.7,
+    "grid.color": LIGHT,
+    "grid.linewidth": 0.4,
+    "xtick.color": BLACK,
+    "ytick.color": BLACK,
+    "text.color": BLACK,
+    "axes.labelcolor": BLACK,
+    "hatch.linewidth": 0.6,
 })
 
 
@@ -85,128 +79,63 @@ def tidy(ax, *, grid_axis="y"):
         ax.spines[side].set_visible(False)
 
 
-# --- Figure 1: system architecture -----------------------------------------
+def best_threshold_rows(rows):
+    """Pick the threshold group that actually discriminates."""
+    if rows and "threshold" in rows[0]:
+        groups = {}
+        for row in rows:
+            groups.setdefault(row["threshold"], []).append(row)
+        return max(groups.values(),
+                   key=lambda g: max(float(r["f1"]) for r in g))
+    return rows
 
-def figure_architecture() -> None:
-    fig, ax = plt.subplots(figsize=(COL_W, 3.5))
+
+# --- Figure 1: detection pipeline ------------------------------------------
+
+def figure_pipeline() -> None:
+    fig, ax = plt.subplots(figsize=(COL_W, 3.6))
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 13.2)
     ax.axis("off")
 
-    def box(y, h, text, fill, edge, bold=False):
-        ax.add_patch(FancyBboxPatch(
-            (0.6, y), 8.8, h,
-            boxstyle="round,pad=0.08,rounding_size=0.18",
-            linewidth=0.8, edgecolor=edge, facecolor=fill, zorder=2))
+    def box(y, h, text, dashed=False, bold=False):
+        ax.add_patch(Rectangle(
+            (0.4, y), 9.2, h, linewidth=0.9, edgecolor=BLACK,
+            facecolor=WHITE, linestyle="--" if dashed else "-", zorder=2))
         ax.text(5.0, y + h / 2, text, ha="center", va="center",
-                fontsize=7.5, color=INK, zorder=3,
+                fontsize=7.2, color=BLACK, zorder=3,
                 fontweight="bold" if bold else "normal", linespacing=1.35)
 
     def arrow(y0, y1):
         ax.add_patch(FancyArrowPatch(
             (5.0, y0), (5.0, y1), arrowstyle="-|>", mutation_scale=8,
-            linewidth=0.8, color=MUTED, zorder=1))
+            linewidth=0.8, color=BLACK, zorder=1))
 
+    # (bottom y, height, text, dashed, bold), laid out top to bottom with a
+    # 0.5-unit gap between boxes for the connecting arrow.
     stages = [
-        (11.6, 1.2, "URL Input", "#ffffff", "#c3c2b7", True),
-        (9.9, 1.2, "Normalisation\n(lowercase, trim)", "#ffffff", "#c3c2b7", False),
-        (7.7, 1.7, "Multilingual Keyword Matching\n33 terms · EN · HI · TA · TE\n+10 per term",
-         "#eaf2fd", BLUE, False),
-        (5.5, 1.7, "Structural Feature Extraction\nlength · '@' · dot count\n+10 / +20 / +10",
-         "#fdeee7", ORANGE, False),
-        (3.6, 1.3, "Weighted Sum\nS(u) = min(Σ wᵢ δᵢ, 100)", "#ffffff", "#c3c2b7", True),
-        (1.9, 1.2, "Risk Banding\nLow < 30 ≤ Medium < 60 ≤ High", "#ffffff", "#c3c2b7", False),
-        (0.1, 1.3, "Explainable Output\nscore · band · every fired rule",
-         "#e8f7f1", GREEN, True),
+        (11.95, 1.0, "URL input", False, True),
+        (10.45, 1.0, "Normalise: lowercase, trim", False, False),
+        (8.05, 1.9, "Multilingual keyword matching\n33 terms: EN, HI, TA, TE\n+10 per matched term",
+         True, False),
+        (5.65, 1.9, "Structural features\nlength, '@', dot count\n+10 / +20 / +10",
+         True, False),
+        (3.75, 1.4, "Weighted sum\nS(u) = min(sum of w_i, 100)", False, True),
+        (2.05, 1.2, "Risk band\nLow < 30 <= Medium < 60 <= High", False, False),
+        (0.15, 1.4, "Output: score, band,\nand every rule that fired", False, True),
     ]
-    for y, h, text, fill, edge, bold in stages:
-        box(y, h, text, fill, edge, bold)
+    for y, h, text, dashed, bold in stages:
+        box(y, h, text, dashed, bold)
 
-    tops = [11.6, 9.9, 7.7, 5.5, 3.6, 1.9, 0.1]
-    heights = [1.2, 1.2, 1.7, 1.7, 1.3, 1.2, 1.3]
+    tops = [s[0] for s in stages]
+    heights = [s[1] for s in stages]
     for i in range(len(tops) - 1):
         arrow(tops[i], tops[i + 1] + heights[i + 1])
 
-    save(fig, "fig1_architecture")
+    save(fig, "fig1_pipeline")
 
 
-
-# --- Figure 2: project architecture ----------------------------------------
-
-def figure_system() -> None:
-    """Layered view of the whole project, not just the scoring path."""
-    fig, ax = plt.subplots(figsize=(COL_W, 4.35))
-    ax.set_xlim(0, 11.6)
-    ax.set_ylim(0, 12.4)
-    ax.axis("off")
-
-    def layer(y, h, x0, x1, title, detail, fill, edge):
-        ax.add_patch(FancyBboxPatch(
-            (x0, y), x1 - x0, h,
-            boxstyle="round,pad=0.06,rounding_size=0.16",
-            linewidth=0.9, edgecolor=edge, facecolor=fill, zorder=2))
-        cx = (x0 + x1) / 2
-        ax.text(cx, y + h - 0.36, title, ha="center", va="center",
-                fontsize=7.4, fontweight="bold", color=INK, zorder=3)
-        ax.text(cx, y + h / 2 - 0.30, detail, ha="center", va="center",
-                fontsize=6.4, color="#3a3a38", zorder=3, linespacing=1.45)
-
-    def flow(y0, y1, x=3.9, label=None, up=False):
-        ax.add_patch(FancyArrowPatch(
-            (x, y0), (x, y1), arrowstyle="-|>", mutation_scale=9,
-            linewidth=0.9, color=MUTED, zorder=1))
-        if label:
-            ax.text(x + 0.18, (y0 + y1) / 2, label, ha="left", va="center",
-                    fontsize=5.9, color=MUTED, style="italic", zorder=3)
-
-    MAIN_L, MAIN_R = 0.15, 7.30
-
-    layer(10.2, 2.0, MAIN_L, MAIN_R, "Interfaces",
-          "main.py · gui_app.py · app.py\nCLI · Tkinter · Streamlit",
-          "#eaf2fd", BLUE)
-
-    layer(6.95, 2.35, MAIN_L, MAIN_R, "Detection Core — detector.py",
-          "33 terms · EN · HI · TA · TE\nfour structural rules · weighted sum\n"
-          "banding · every fired rule",
-          "#e8f7f1", GREEN)
-
-    layer(3.75, 2.35, MAIN_L, MAIN_R, "Evaluation — evaluate.py",
-          "confusion matrix · sweep\nablation · per-rule rates\n"
-          "artifact diagnostic",
-          "#fdeee7", ORANGE)
-
-    layer(0.35, 2.45, MAIN_L, MAIN_R, "Data Pipeline",
-          "crawl_legit.py → build_dataset.py\nOpenPhish / PhishTank · Tranco\n"
-          "dedup: exact + domain",
-          "#ffffff", "#c3c2b7")
-
-    flow(10.2, 9.30, x=3.7, label="score_url(url)")
-    flow(6.95, 6.10, x=3.7, label="scores")
-    flow(2.80, 3.75, x=3.7, label="data/urls.csv")
-
-    # Cross-cutting column: attaches to every layer, owned by none.
-    ax.add_patch(FancyBboxPatch(
-        (7.60, 0.35), 3.85, 11.85,
-        boxstyle="round,pad=0.06,rounding_size=0.16",
-        linewidth=0.9, edgecolor="#9a97c9", facecolor="#f0eefb",
-        linestyle="--", zorder=2))
-    ax.text(9.52, 11.55, "Cross-cutting", ha="center", va="center",
-            fontsize=7.0, fontweight="bold", color=INK, zorder=3)
-    ax.text(9.52, 6.4,
-            "run_pipeline.py\nruns every stage\nin order\n\n"
-            "193 pytest tests\ncover the scorer,\ndeduplication\nand the metrics\n\n"
-            "make_figures.py\ncapture_outputs.py\nrebuild every\nfigure from source",
-            ha="center", va="center", fontsize=6.0, color="#3a3a38",
-            zorder=3, linespacing=1.7)
-    for y in (11.2, 8.1, 4.9, 1.6):
-        ax.add_patch(FancyArrowPatch(
-            (7.60, y), (7.33, y), arrowstyle="-", linewidth=0.7,
-            color="#9a97c9", linestyle=(0, (2, 2)), zorder=1))
-
-    save(fig, "fig2_system")
-
-
-# --- Figure 6: threshold sweep ---------------------------------------------
+# --- Figure 2: threshold sweep ---------------------------------------------
 
 def figure_threshold_sweep() -> bool:
     rows = read_csv("threshold_sweep.csv")
@@ -215,42 +144,41 @@ def figure_threshold_sweep() -> bool:
 
     x = [int(r["threshold"]) for r in rows]
     series = [
-        ("Precision", [float(r["precision"]) for r in rows], BLUE, "-", "o"),
-        ("Recall", [float(r["recall"]) for r in rows], ORANGE, "--", "s"),
-        ("F1", [float(r["f1"]) for r in rows], GREEN, "-.", "^"),
+        ("Precision", [float(r["precision"]) for r in rows], "-", "o", BLACK),
+        ("Recall", [float(r["recall"]) for r in rows], "--", "s", GREY),
+        ("F1", [float(r["f1"]) for r in rows], "-.", "^", BLACK),
     ]
 
-    fig, ax = plt.subplots(figsize=(COL_W, 2.3))
-    for label, y, colour, style, marker in series:
+    fig, ax = plt.subplots(figsize=(COL_W, 2.2))
+    for label, y, style, marker, colour in series:
         ax.plot(x, y, label=label, color=colour, linestyle=style,
-                marker=marker, markersize=3.2, linewidth=1.4, zorder=3)
+                marker=marker, markersize=3.2, linewidth=1.2,
+                markerfacecolor=WHITE, markeredgewidth=0.8, zorder=3)
 
-    ax.axvline(60, color=MUTED, linewidth=0.8, linestyle=":", zorder=2)
-    ax.text(61, 0.55, "operating\nthreshold", fontsize=6.2, color=MUTED,
+    ax.axvline(60, color=GREY, linewidth=0.8, linestyle=":", zorder=2)
+    ax.text(61.5, 0.52, "configured\nthreshold", fontsize=6.2, color=BLACK,
             ha="left", va="bottom", linespacing=1.2)
 
-    # Mark the best operating point: the gap between it and the configured
-    # threshold is the finding.
     f1 = [float(r["f1"]) for r in rows]
     best = max(range(len(f1)), key=lambda i: f1[i])
     ax.annotate(f"best F1 = {f1[best]:.2f}\nat threshold {x[best]}",
-                xy=(x[best], f1[best]), xytext=(x[best] + 14, f1[best] + 0.16),
-                fontsize=6.2, color=INK, linespacing=1.25,
-                arrowprops=dict(arrowstyle="-", linewidth=0.7, color=MUTED))
+                xy=(x[best], f1[best]), xytext=(x[best] + 13, f1[best] + 0.18),
+                fontsize=6.2, color=BLACK, linespacing=1.25,
+                arrowprops=dict(arrowstyle="-", linewidth=0.6, color=BLACK))
 
     ax.set_xlabel("Score threshold")
     ax.set_ylabel("Score")
     ax.set_xticks(range(0, 101, 20))
-    ax.set_ylim(-0.03, 1.20)
+    ax.set_ylim(-0.03, 1.22)
     tidy(ax)
     ax.legend(frameon=False, ncol=3, loc="lower center",
               bbox_to_anchor=(0.5, 1.01), columnspacing=1.4, handlelength=2.0,
               borderaxespad=0.0)
-    save(fig, "fig6_threshold_sweep")
+    save(fig, "fig2_threshold_sweep")
     return True
 
 
-# --- Figure 7: rule-group ablation -----------------------------------------
+# --- Figure 3: rule-group ablation -----------------------------------------
 
 def figure_ablation() -> bool:
     rows = read_csv("ablation.csv")
@@ -260,55 +188,44 @@ def figure_ablation() -> bool:
     labels = {"full": "All rules", "keywords_only": "Vocabulary\nonly",
               "structural_only": "Structural\nonly"}
     order = ["full", "keywords_only", "structural_only"]
-
-    # The file may hold the ablation at several thresholds. Plot the one that
-    # discriminates: a threshold where every variant scores zero shows nothing.
-    if rows and "threshold" in rows[0]:
-        by_threshold = {}
-        for row in rows:
-            by_threshold.setdefault(row["threshold"], []).append(row)
-        rows = max(by_threshold.values(),
-                   key=lambda group: max(float(r["f1"]) for r in group))
-
+    rows = best_threshold_rows(rows)
     rows = sorted(rows, key=lambda r: order.index(r["variant"])
                   if r["variant"] in order else 99)
 
-    metrics = [("precision", "Precision", BLUE, ""),
-               ("recall", "Recall", ORANGE, "///"),
-               ("f1", "F1", GREEN, "...")]
+    metrics = [("precision", "Precision", WHITE, ""),
+               ("recall", "Recall", WHITE, "////"),
+               ("f1", "F1", LIGHT, "....")]
 
-    fig, ax = plt.subplots(figsize=(COL_W, 2.3))
-    n = len(rows)
+    fig, ax = plt.subplots(figsize=(COL_W, 2.2))
     width = 0.26
-    positions = range(n)
+    positions = range(len(rows))
 
-    for i, (key, label, colour, hatch) in enumerate(metrics):
+    for i, (key, label, fill, hatch) in enumerate(metrics):
         offset = (i - 1) * width
         values = [float(r[key]) for r in rows]
-        bars = ax.bar([p + offset for p in positions], values, width * 0.92,
-                      label=label, color=colour, edgecolor=SURFACE,
-                      linewidth=1.0, hatch=hatch, zorder=3)
+        bars = ax.bar([p + offset for p in positions], values, width * 0.9,
+                      label=label, facecolor=fill, edgecolor=BLACK,
+                      linewidth=0.8, hatch=hatch, zorder=3)
         for bar, value in zip(bars, values):
             ax.text(bar.get_x() + bar.get_width() / 2, value + 0.02,
                     f"{value:.2f}", ha="center", va="bottom",
-                    fontsize=5.8, color=INK, zorder=4)
+                    fontsize=5.8, color=BLACK, zorder=4)
 
     ax.set_xticks(list(positions))
     ax.set_xticklabels([labels.get(r["variant"], r["variant"]) for r in rows])
     ax.set_ylabel("Score")
     ax.set_ylim(0, 1.08)
     tidy(ax)
-    # Above the axes, so it cannot collide with the value labels on tall bars.
     ax.legend(frameon=False, ncol=3, loc="lower center",
               bbox_to_anchor=(0.5, 1.01), columnspacing=1.4, handlelength=1.4,
               borderaxespad=0.0)
-    save(fig, "fig7_ablation")
+    save(fig, "fig3_ablation")
     return True
 
 
-# --- Figure 8: per-rule firing rates ---------------------------------------
+# --- Figure 4: per-rule firing rates ---------------------------------------
 
-def figure_per_rule(top: int = 12) -> bool:
+def figure_per_rule(top: int = 8) -> bool:
     rows = read_csv("per_rule.csv")
     if not rows:
         return False
@@ -320,46 +237,45 @@ def figure_per_rule(top: int = 12) -> bool:
     phishing = [float(r["phishing_rate"]) for r in rows]
     legit = [float(r["legit_rate"]) for r in rows]
 
-    fig, ax = plt.subplots(figsize=(COL_W, max(2.2, 0.22 * len(rows) + 0.7)))
+    fig, ax = plt.subplots(figsize=(COL_W, max(1.9, 0.24 * len(rows) + 0.6)))
     y = range(len(rows))
     height = 0.38
 
-    ax.barh([i + height / 2 for i in y], phishing, height * 0.92,
-            label="Phishing", color=BLUE, edgecolor=SURFACE, linewidth=1.0, zorder=3)
-    ax.barh([i - height / 2 for i in y], legit, height * 0.92,
-            label="Legitimate", color=ORANGE, edgecolor=SURFACE, linewidth=1.0,
-            hatch="///", zorder=3)
+    ax.barh([i + height / 2 for i in y], phishing, height * 0.9,
+            label="Phishing", facecolor=LIGHT, edgecolor=BLACK,
+            linewidth=0.8, zorder=3)
+    ax.barh([i - height / 2 for i in y], legit, height * 0.9,
+            label="Legitimate", facecolor=WHITE, edgecolor=BLACK,
+            linewidth=0.8, hatch="////", zorder=3)
 
     ax.set_yticks(list(y))
-    ax.set_yticklabels(names, fontsize=6.5)
+    ax.set_yticklabels(names, fontsize=6.8)
     ax.set_xlabel("Firing rate within class")
-    ax.set_xlim(0, 1.05)
+    ax.set_xlim(0, 1.02)
     tidy(ax, grid_axis="x")
     ax.legend(frameon=False, loc="lower right", handlelength=1.4,
-              borderaxespad=0.2)
-    save(fig, "fig8_per_rule")
+              borderaxespad=0.3)
+    save(fig, "fig4_per_rule")
     return True
 
 
 def main() -> int:
     print("Figure 1: detection pipeline")
-    figure_architecture()
-    print("Figure 2: project architecture")
-    figure_system()
+    figure_pipeline()
 
-    produced = []
     print("\nResult figures (require results/):")
-    for name, fn in (("Figure 6: threshold sweep", figure_threshold_sweep),
-                     ("Figure 7: rule-group ablation", figure_ablation),
-                     ("Figure 8: per-rule firing rates", figure_per_rule)):
-        print(f"{name}")
+    produced = 0
+    for name, fn in (("Figure 2: threshold sweep", figure_threshold_sweep),
+                     ("Figure 3: rule-group ablation", figure_ablation),
+                     ("Figure 4: per-rule firing rates", figure_per_rule)):
+        print(name)
         if fn():
-            produced.append(name)
+            produced += 1
         else:
             print("  skipped: no data in results/")
 
     print()
-    if len(produced) < 3:
+    if produced < 3:
         print("Some figures were skipped because the evaluation has not been run.")
         print("Run  python run_pipeline.py  then re-run this script.")
     else:

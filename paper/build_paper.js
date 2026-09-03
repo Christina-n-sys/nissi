@@ -7,170 +7,122 @@ const {
 
 const FONT = "Times New Roman";
 const BODY = 20;      // 10pt in half-points
-const SMALL = 16;     // 8pt, used inside tables
+const SMALL = 16;     // 8pt, used in tables and captions
 const COL_W = 5230;   // usable width of one column, in DXA
+const COL_PX = 344;   // the same column at 96 dpi
+const FIGDIR = __dirname + "/figures";
+const C = AlignmentType.CENTER;
 
-// ---------- helpers ----------
+// ---------- building blocks ----------
 
 const title = (text) => new Paragraph({
-  alignment: AlignmentType.CENTER,
-  spacing: { after: 120 },
-  children: [new TextRun({ text, font: FONT, size: 48 })],
+  alignment: C, spacing: { after: 120 },
+  children: [new TextRun({ text, font: FONT, size: 44 })],
 });
 
 const authorLine = (text, opts = {}) => new Paragraph({
-  alignment: AlignmentType.CENTER,
-  spacing: { after: opts.after ?? 0 },
-  children: [new TextRun({ text, font: FONT, size: opts.size ?? BODY, italics: !!opts.italics })],
+  alignment: C, spacing: { after: opts.after ?? 0 },
+  children: [new TextRun({ text, font: FONT, size: opts.size ?? BODY })],
 });
 
 const sectionHead = (text) => new Paragraph({
-  alignment: AlignmentType.CENTER,
-  spacing: { before: 240, after: 120 },
+  alignment: C, spacing: { before: 220, after: 110 },
   children: [new TextRun({ text, font: FONT, size: BODY, smallCaps: true })],
 });
 
 const subHead = (text) => new Paragraph({
-  spacing: { before: 160, after: 80 },
+  spacing: { before: 140, after: 70 },
   children: [new TextRun({ text, font: FONT, size: BODY, italics: true })],
 });
 
 const body = (text, opts = {}) => new Paragraph({
   alignment: AlignmentType.JUSTIFIED,
-  spacing: { after: opts.after ?? 80 },
-  indent: opts.noIndent ? undefined : { firstLine: convertInchesToTwip(0.2) },
+  spacing: { after: opts.after ?? 70 },
+  indent: opts.noIndent ? undefined : { firstLine: convertInchesToTwip(0.18) },
   children: [new TextRun({ text, font: FONT, size: BODY })],
 });
 
 const bullet = (text) => new Paragraph({
-  alignment: AlignmentType.JUSTIFIED,
-  spacing: { after: 60 },
-  indent: { left: convertInchesToTwip(0.25), hanging: convertInchesToTwip(0.12) },
+  alignment: AlignmentType.JUSTIFIED, spacing: { after: 50 },
+  indent: { left: convertInchesToTwip(0.24), hanging: convertInchesToTwip(0.12) },
   children: [new TextRun({ text, font: FONT, size: BODY })],
 });
 
 const equation = (text) => new Paragraph({
-  alignment: AlignmentType.CENTER,
-  spacing: { before: 100, after: 100 },
+  alignment: C, spacing: { before: 90, after: 90 },
   children: [new TextRun({ text, font: FONT, size: BODY, italics: true })],
 });
 
-// IEEE table captions sit above the table on two lines: the number, then the
-// title. Both centred, both 8pt.
+// IEEE table caption: number then title, both centred above the table.
 const tableCaption = (number, titleText) => [
   new Paragraph({
-    alignment: AlignmentType.CENTER,
-    spacing: { before: 140, after: 0 },
+    alignment: C, spacing: { before: 130, after: 0 },
     children: [new TextRun({ text: `TABLE ${number}`, font: FONT, size: SMALL })],
   }),
   new Paragraph({
-    alignment: AlignmentType.CENTER,
-    spacing: { before: 0, after: 60 },
+    alignment: C, spacing: { before: 0, after: 55 },
     children: [new TextRun({ text: titleText, font: FONT, size: SMALL, smallCaps: true })],
   }),
 ];
 
 const note = (text) => new Paragraph({
-  alignment: AlignmentType.LEFT,
-  spacing: { before: 60, after: 120 },
+  alignment: AlignmentType.LEFT, spacing: { before: 50, after: 110 },
   children: [new TextRun({ text, font: FONT, size: SMALL, italics: true })],
 });
-
-// A cell whose value must be measured, never guessed.
-const PENDING = "—";
 
 function cell(text, width, opts = {}) {
   return new TableCell({
     width: { size: width, type: WidthType.DXA },
-    shading: opts.header
-      ? { type: ShadingType.CLEAR, fill: "E8E8E8", color: "auto" }
-      : undefined,
-    margins: { top: 40, bottom: 40, left: 80, right: 80 },
+    margins: { top: 36, bottom: 36, left: 70, right: 70 },
     children: [new Paragraph({
       alignment: opts.align ?? AlignmentType.LEFT,
       children: [new TextRun({
-        text,
-        font: FONT,
-        size: opts.size ?? SMALL,
-        bold: !!opts.header,
-        italics: !!opts.italics,
+        text, font: FONT, size: SMALL, bold: !!opts.header,
       })],
     })],
   });
 }
 
+// Tables are black and white: horizontal rules only, no fills.
 function table(widths, rows) {
   return new Table({
     columnWidths: widths,
     width: { size: widths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
     borders: {
-      top:    { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-      bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+      top:    { style: BorderStyle.SINGLE, size: 6, color: "000000" },
+      bottom: { style: BorderStyle.SINGLE, size: 6, color: "000000" },
       left:   { style: BorderStyle.NONE },
       right:  { style: BorderStyle.NONE },
-      insideHorizontal: { style: BorderStyle.SINGLE, size: 2, color: "999999" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 2, color: "000000" },
       insideVertical:   { style: BorderStyle.NONE },
     },
     rows: rows.map((cells, i) => new TableRow({
       tableHeader: i === 0,
       children: cells.map((c, j) =>
-        cell(c.t, widths[j], { header: i === 0, align: c.a, italics: c.i })),
+        cell(c.t, widths[j], { header: i === 0, align: c.a })),
     })),
   });
 }
 
-// ---------- figures ----------
-
-const FIGDIR = __dirname + "/figures";
-const COL_PX = 344;   // one column at 96 dpi, matching COL_W
-
-// Embeds figures/<file> scaled to column width. When the figure has not been
-// generated yet, a visible placeholder is emitted instead of silently nothing.
-function figureImage(file, widthPx = COL_PX) {
-  const path = `${FIGDIR}/${file}`;
-  if (!fs.existsSync(path)) {
-    return new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 120, after: 40 },
-      shading: { type: ShadingType.CLEAR, fill: "FFF2CC", color: "auto" },
-      children: [new TextRun({
-        text: `[ ${file} not generated yet — run python paper/make_figures.py ]`,
-        font: FONT, size: SMALL, italics: true,
-      })],
-    });
-  }
-  const dim = require("child_process").execSync(
-    `python3 -c "from PIL import Image; w,h=Image.open('${path}').size; print(w,h)"`
-  ).toString().trim().split(" ").map(Number);
-  const height = Math.round(widthPx * (dim[1] / dim[0]));
-  return new Paragraph({
-    alignment: AlignmentType.CENTER,
-    spacing: { before: 120, after: 40 },
-    children: [new ImageRun({
-      type: "png",
-      data: fs.readFileSync(path),
-      transformation: { width: widthPx, height },
-    })],
-  });
-}
-
-const figCaption = (text) => new Paragraph({
-  alignment: AlignmentType.LEFT,
-  spacing: { after: 140 },
-  children: [new TextRun({ text, font: FONT, size: SMALL })],
-});
-
-
-// Figures are numbered by document order, so inserting or moving one cannot
-// leave a stale "Fig. N" behind.
+// Figures are numbered by document order, so moving one cannot leave a stale
+// number behind.
 let figureCounter = 0;
 function figure(file, captionText, widthPx = COL_PX) {
   figureCounter += 1;
+  const path = `${FIGDIR}/${file}`;
+  const dim = require("child_process").execSync(
+    `python3 -c "from PIL import Image; w,h=Image.open('${path}').size; print(w,h)"`
+  ).toString().trim().split(" ").map(Number);
   return [
-    figureImage(file, widthPx),
     new Paragraph({
-      alignment: AlignmentType.LEFT,
-      spacing: { after: 140 },
+      alignment: C, spacing: { before: 110, after: 35 },
+      children: [new ImageRun({
+        type: "png", data: fs.readFileSync(path),
+        transformation: { width: widthPx, height: Math.round(widthPx * dim[1] / dim[0]) },
+      })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.LEFT, spacing: { after: 130 },
       children: [new TextRun({
         text: `Fig. ${figureCounter}.  ${captionText}`, font: FONT, size: SMALL,
       })],
@@ -179,739 +131,571 @@ function figure(file, captionText, widthPx = COL_PX) {
 }
 
 const ref = (n, text) => new Paragraph({
-  alignment: AlignmentType.JUSTIFIED,
-  spacing: { after: 40 },
-  indent: { left: convertInchesToTwip(0.22), hanging: convertInchesToTwip(0.22) },
+  alignment: AlignmentType.JUSTIFIED, spacing: { after: 32 },
+  indent: { left: convertInchesToTwip(0.2), hanging: convertInchesToTwip(0.2) },
   children: [new TextRun({ text: `[${n}] ${text}`, font: FONT, size: SMALL })],
 });
 
-// ---------- front matter (full width) ----------
+// ---------- front matter ----------
 
 const front = [
-  title("Measuring a Multilingual Rule-Based Phishing URL Detector: A Negative Result and a Reproducible Evaluation Protocol"),
+  title("Measuring a Multilingual Rule-Based Phishing URL Detector: A Negative Result"),
   authorLine("Bairi Christina", { after: 0 }),
   authorLine("Department of Data Science and Cyber Security", { size: SMALL }),
   authorLine("Karunya Institute of Technology and Sciences, Coimbatore, India", { size: SMALL }),
-  authorLine("bairichristinal@karunya.edu.in", { size: SMALL, after: 120 }),
+  authorLine("bairichristinal@karunya.edu.in", { size: SMALL, after: 110 }),
   authorLine("Rahul R", { after: 0 }),
   authorLine("Department of Data Science and Cyber Security", { size: SMALL }),
   authorLine("Karunya Institute of Technology and Sciences, Coimbatore, India", { size: SMALL }),
-  authorLine("rahulrajanrc@gmail.com", { size: SMALL, after: 240 }),
+  authorLine("rahulrajanrc@gmail.com", { size: SMALL, after: 200 }),
 ];
-
-// ---------- body (two columns) ----------
 
 const content = [];
 const P = (x) => content.push(x);
 
-// Abstract -------------------------------------------------------------------
+// ---------- abstract ----------
+
 P(new Paragraph({
-  alignment: AlignmentType.JUSTIFIED,
-  spacing: { after: 100 },
+  alignment: AlignmentType.JUSTIFIED, spacing: { after: 90 },
   children: [
     new TextRun({ text: "Abstract—", font: FONT, size: BODY, bold: true, italics: true }),
     new TextRun({
       text: "Phishing detectors built on English lexical features miss campaigns "
-          + "that target users in regional languages. This paper specifies a "
+          + "aimed at speakers of regional languages. This paper specifies a "
           + "rule-based phishing URL detector that scores a URL against a 33-term "
           + "vocabulary spanning English, Hindi, Tamil and Telugu together with "
-          + "four structural indicators, needing no training data, no network "
-          + "access and no accelerator, and explaining every verdict by "
-          + "construction. It then measures that detector honestly, and reports "
-          + "what the measurement found. On a balanced set of 170 URLs drawn from "
-          + "the OpenPhish feed and the Tranco top-sites list, the detector "
-          + "classifies nothing as phishing at the risk threshold it was "
-          + "configured with: recall and F1 are both zero, and accuracy equals "
-          + "the base rate. A threshold sweep locates the best attainable "
-          + "operating point at a score of 10, where F1 reaches 0.780, so the "
-          + "configured threshold is miscalibrated by a factor of six. More "
-          + "consequentially, the multilingual vocabulary is inert on this "
-          + "corpus: four of its 33 terms fire at all, none of them Hindi, Tamil "
-          + "or Telugu. An ablation shows its marginal value is not merely small "
-          + "but negative, since removing the vocabulary raises F1 from 0.780 to "
-          + "0.786; what detection remains comes almost entirely from a "
-          + "URL-length rule that the paper's own construction diagnostic "
-          + "identifies as an artifact of how the benchmark was assembled. "
-          + "Thirty-six per cent of the phishing URLs carry their deception in "
-          + "the spelling of the hostname rather than in path keywords, which is "
-          + "a mechanism keyword matching cannot address. Two "
-          + "further findings emerged from the pipeline rather than the detector. "
-          + "Two thirds of the live phishing feed was hosted on domains that also "
-          + "appear among the top sites, so domain-level features cannot separate "
-          + "the classes at all. And pairing a phishing feed against a top-site "
-          + "list yields classes separable by string length alone, which we "
-          + "quantify and argue should be reported before any metric in "
-          + "URL-classification work. The negative result is reported as found; "
-          + "all code, the dataset builder and the evaluation harness are "
-          + "released so that every figure here can be regenerated from the "
-          + "primary feeds.",
+          + "four structural indicators, requires no training data and explains "
+          + "every verdict by construction, and then measures it. On a balanced "
+          + "set of 170 URLs drawn from a live phishing feed and a top-sites list, "
+          + "the detector classifies nothing as phishing at the risk threshold it "
+          + "was configured with: recall and F1 are zero and accuracy equals the "
+          + "base rate. A threshold sweep places the best operating point at a "
+          + "score of 10, where F1 reaches 0.780, so the configured threshold is "
+          + "miscalibrated by a factor of six. An ablation shows the multilingual "
+          + "vocabulary's marginal value is negative rather than merely small: "
+          + "removing it raises F1 to 0.786. Four of its 33 terms fire at all and "
+          + "none of them are Hindi, Tamil or Telugu. What detection remains comes "
+          + "almost entirely from a URL-length rule that our own construction "
+          + "diagnostic identifies as an artifact of how the benchmark was "
+          + "assembled. Two findings emerged from the pipeline rather than the "
+          + "detector: two thirds of the live feed was hosted on domains that also "
+          + "rank among the top sites, so no domain-level feature can separate the "
+          + "classes; and 36 per cent of the phishing URLs carry their deception in "
+          + "the spelling of the hostname rather than in path keywords, a mechanism "
+          + "keyword matching cannot address. The negative result is reported as "
+          + "found, and all code and data are released so that every number can be "
+          + "regenerated.",
       font: FONT, size: BODY, italics: true,
     }),
   ],
 }));
 
 P(new Paragraph({
-  alignment: AlignmentType.JUSTIFIED,
-  spacing: { after: 120 },
+  alignment: AlignmentType.JUSTIFIED, spacing: { after: 110 },
   children: [
     new TextRun({ text: "Index Terms—", font: FONT, size: BODY, bold: true, italics: true }),
     new TextRun({
       text: "phishing detection, URL analysis, multilingual keyword matching, "
           + "rule-based classification, negative results, evaluation methodology, "
-          + "dataset construction artifacts, reproducibility",
+          + "dataset construction, reproducibility",
       font: FONT, size: BODY, italics: true,
     }),
   ],
 }));
 
-// I. Introduction ------------------------------------------------------------
+// ---------- 1. Introduction ----------
+
 P(sectionHead("I.  Introduction"));
-P(body("Phishing attacks direct users to deceptive Uniform Resource Locators that "
-  + "imitate legitimate services in order to capture passwords, banking credentials "
-  + "and one-time passwords. The attack succeeds before any software vulnerability "
-  + "is involved: the victim reads a URL, judges it plausible, and proceeds. Because "
-  + "the URL is the point at which the deception must survive inspection, it remains "
-  + "a productive place to intervene.", { noIndent: true }));
-P(body("Established defences fall into three families, each with a structural "
-  + "weakness. Blacklists compare a candidate against previously reported malicious "
-  + "URLs and therefore cannot recognise a domain registered minutes ago. Supervised "
-  + "learning over lexical, host and content features generalises further but "
+P(body("Phishing directs users to deceptive Uniform Resource Locators that "
+  + "imitate legitimate services in order to capture passwords, banking "
+  + "credentials and one-time passwords. It remains among the most frequently "
+  + "reported categories of cybercrime [1], and continues to feature in a large "
+  + "share of breaches involving a human element [2]. The attack succeeds before "
+  + "any software vulnerability is involved: the victim reads a URL, judges it "
+  + "plausible, and proceeds. Because the URL is where the deception must survive "
+  + "inspection, it remains a productive place to intervene.", { noIndent: true }));
+P(body("Established defences have known structural weaknesses. Blacklists cannot "
+  + "recognise a domain registered minutes ago, and large-scale measurement shows "
+  + "that much of a phishing campaign's damage is done inside the window before "
+  + "listing occurs [3], with blacklist coverage and speed varying widely in "
+  + "practice [4]. Supervised learning over URL strings generalises further but "
   + "requires labelled corpora, periodic retraining, and yields models whose "
-  + "decisions are difficult to explain to the user being protected. Deep models "
-  + "improve accuracy at the cost of substantially greater data and compute."));
-P(body("A less discussed limitation cuts across all three. Detectors are "
-  + "overwhelmingly built and evaluated on English lexical features, so an attacker "
-  + "who writes a lure in a regional language evades the lexical component entirely. "
-  + "In the Indian subcontinent, campaigns routinely employ transliterated Hindi, "
-  + "Tamil and Telugu terms for account, verification, security and urgency. A "
-  + "detector whose vocabulary contains only English tokens scores such a URL as it "
-  + "would score any unfamiliar string."));
-P(body("This paper addresses that gap with a deliberately small, fully transparent "
-  + "detector, and pairs it with an evaluation protocol we believe matters more than "
-  + "the detector itself. While assembling a benchmark from the standard public "
-  + "sources, we found that the conventional pairing of a phishing feed with a "
-  + "top-site list introduces a systematic confound: the phishing class arrives as "
-  + "full URLs carrying paths, while the legitimate class arrives as bare "
-  + "registrable domains. Any rule keyed to URL length or delimiter count then "
-  + "separates the two classes almost perfectly while measuring nothing about "
-  + "phishing. We treat the removal and measurement of this confound as a primary "
-  + "contribution."));
-P(body("The contributions of this work are as follows.", { noIndent: true }));
-P(bullet("1)  A rule-based multilingual phishing URL detector covering English, "
-  + "Hindi, Tamil and Telugu, requiring no training, no network access and no "
-  + "specialised hardware, and returning the identity and weight of every rule "
-  + "that fired so that a verdict can be audited term by term."));
-P(bullet("2)  A negative result obtained under an enforced protocol. At the risk "
-  + "threshold the system was configured with, the detector classifies no URL as "
-  + "phishing: recall and F1 are zero. The best attainable operating point lies "
-  + "at one sixth of that threshold. The result is reported as found."));
-P(bullet("3)  Evidence that the multilingual vocabulary has negative marginal value on a global phishing feed. Four of 33 terms fire, none of them Hindi, Tamil or Telugu, and removing the vocabulary entirely improves F1. The corpus does not contain the phenomenon the vocabulary was built for, which is a statement about benchmark availability as much as about the detector."));
-P(bullet("4)  A measurement of where live phishing is hosted. Two thirds of the "
-  + "feed sat on domains that also appear among the top sites, so no domain-level "
-  + "feature can separate the classes on this data."));
-P(bullet("5)  Identification and quantification of a construction artifact we "
-  + "argue is widespread: pairing a phishing feed against a top-site list yields "
-  + "classes separable by string length alone. We give a diagnostic for it and "
-  + "argue it should be reported before any metric."));
+  + "decisions are difficult to explain to the user being protected."));
+P(body("A less discussed limitation cuts across all of these. Detectors are "
+  + "overwhelmingly built and evaluated on English lexical features, so an "
+  + "attacker who writes a lure in a regional language evades the lexical "
+  + "component entirely. In the Indian subcontinent, campaigns can employ "
+  + "transliterated Hindi, Tamil and Telugu terms for account, verification, "
+  + "security and urgency. A detector whose vocabulary contains only English "
+  + "tokens scores such a URL as it would score any unfamiliar string."));
+P(body("This paper specifies a deliberately small, fully transparent detector "
+  + "addressing that gap, and then measures it under a protocol built for the "
+  + "purpose. The measurement is negative, and we report it as found. We also "
+  + "report a construction artifact encountered while assembling the benchmark: "
+  + "the conventional pairing of a phishing feed with a top-sites list produces "
+  + "classes separable by string length alone, because one source supplies full "
+  + "URLs and the other supplies bare domains. We treat the identification and "
+  + "quantification of that artifact as a contribution in its own right."));
+P(body("The contributions are as follows.", { noIndent: true }));
+P(bullet("1) A rule-based multilingual phishing URL detector covering English, "
+  + "Hindi, Tamil and Telugu, requiring no training and no network access, which "
+  + "returns the identity and weight of every rule that fired so a verdict can be "
+  + "audited term by term."));
+P(bullet("2) A negative result. At the threshold the detector was configured "
+  + "with it classifies nothing as phishing; the best attainable operating point "
+  + "lies at one sixth of that threshold."));
+P(bullet("3) Evidence that the multilingual vocabulary has negative marginal "
+  + "value on a global feed: removing it improves F1, and none of its "
+  + "regional-language terms fire."));
+P(bullet("4) Two measurements of the current phishing landscape: two thirds of "
+  + "the feed is hosted on domains that also rank among the top sites, and 36 per "
+  + "cent of URLs carry their deception in the hostname spelling."));
+P(bullet("5) A construction-artifact diagnostic that we argue should be reported "
+  + "before any metric in URL-classification work."));
 
-P(body("Section II reviews related work. Section III specifies the detector. "
-  + "Section IV describes the implementation and a defect analysis of the prototype "
-  + "it replaces. Section V details dataset construction and the artifact. "
-  + "Section VI states the evaluation protocol, Section VII reports results, and "
-  + "Sections VIII and IX discuss limitations and conclusions."));
+// ---------- 2. Related work ----------
 
-// II. Related work -----------------------------------------------------------
 P(sectionHead("II.  Related Work"));
-P(body("Blacklist-driven detection, exemplified by early large-scale measurement "
-  + "work [8], is precise on known threats and blind to new ones; the reporting "
-  + "delay between registration and listing is precisely the window attackers "
-  + "exploit. Surveys of the field [2], [11] treat this latency as the defining "
-  + "limitation of the approach.", { noIndent: true }));
-P(body("Learned classifiers over URL strings were established by Ma et al. [9], who "
-  + "showed that lexical and host features alone support accurate discrimination, "
-  + "and refined by Le et al. [4] and by Verma and Dyer [10], who examined the "
-  + "robustness of purely lexical classifiers. Marchal et al. [1] extended the "
-  + "setting to streaming analytics. Jain and Gupta [5] incorporated hyperlink "
-  + "information, and related work has explored visual similarity [3]. Deep "
-  + "architectures [13] and hybrid lexical-structural systems [12] report further "
-  + "gains at higher cost. Across this literature the reported metrics are strong, "
-  + "which makes the composition of the underlying benchmarks consequential."));
-P(body("Two gaps motivate the present work. First, the lexical component of these "
-  + "systems is almost always English. Where multilingual phishing is considered it "
-  + "is usually at the level of page content rather than the URL string, leaving "
-  + "transliterated regional-language lures in the URL itself unaddressed. Second, "
-  + "benchmark construction is rarely reported in enough detail to reproduce, and "
-  + "the common recipe of a phishing feed against a top-site list is, as Section V "
-  + "shows, sufficient on its own to produce strong-looking results from rules that "
-  + "encode no knowledge of phishing. Reports of near-perfect accuracy on URL "
-  + "classification should be read with the construction of the negative class in "
-  + "view."));
+P(body("Recent surveys of phishing website detection agree on the broad "
+  + "landscape: blacklists are precise but slow, feature-based machine learning "
+  + "dominates the literature, and deep models improve accuracy at substantially "
+  + "greater data and compute cost [5], [6]. Character-level neural models "
+  + "operating directly on the URL string report strong results without "
+  + "hand-crafted features [7]. Across this work the reported metrics are high, "
+  + "which makes the composition of the underlying benchmarks consequential.",
+  { noIndent: true }));
+P(body("That composition has itself been questioned. Hannousse and Yahiouche [8] "
+  + "examine the datasets commonly used for machine-learning phishing detection "
+  + "and find that reported performance depends heavily on how the corpus was "
+  + "assembled and on which features are available in it. Our construction "
+  + "artifact is an instance of the same concern, arising at the level of the raw "
+  + "URL string rather than of extracted features, and we give a diagnostic that "
+  + "detects it directly."));
+P(body("A parallel line of measurement work characterises what live phishing "
+  + "actually looks like, rather than how well a classifier scores. Zhang et al. "
+  + "[9] show that client-side cloaking is widespread and materially reduces the "
+  + "effectiveness of automated crawlers. Kondracki et al. [10] identify "
+  + "man-in-the-middle phishing toolkits that proxy the genuine site. Bijmans et "
+  + "al. [11] track phishing kits at national scale and document how heavily "
+  + "attackers rely on shared infrastructure. Our findings on hosting and on "
+  + "hostname spelling are consistent with this line of work, and were obtained "
+  + "as a by-product of the evaluation pipeline rather than as its objective."));
+P(body("Two gaps motivate this paper. First, the lexical component of published "
+  + "detectors is almost always English; where multilingual phishing is "
+  + "considered it is usually at the level of page content rather than the URL "
+  + "string. Second, benchmark construction is rarely reported in enough detail "
+  + "to reproduce, and the recipe we examine is sufficient on its own to produce "
+  + "strong-looking results from a rule encoding no knowledge of phishing."));
 
-// III. System design ---------------------------------------------------------
-P(sectionHead("III.  Detector Design"));
+// ---------- 3. Methodology ----------
 
-P(body("The system is organised in four layers over a shared test suite "
-  + "(Fig. 1). Every interface calls one scoring module, so a URL receives one "
-  + "verdict whichever front-end asked; the dataset pipeline and evaluation "
-  + "harness sit beneath it and are exercised by the same tests.", { noIndent: true }));
-
-figure("fig2_system.png", "Project architecture. Every interface calls one "
-  + "scoring module, so a URL has one verdict whichever front-end asked. The "
-  + "data pipeline and the evaluation harness sit below it and are exercised by "
-  + "the same test suite; the cross-cutting column attaches to every layer and "
-  + "is owned by none.", 344).forEach(P);
+P(sectionHead("III.  Methodology"));
 
 P(subHead("A.  Scoring function"));
-P(body("The detector maps a URL to a bounded integer score. Each rule that matches "
-  + "contributes a fixed weight, weights are summed, and the total is clamped to a "
-  + "maximum of 100:", { noIndent: true }));
-P(equation("S(u) = min( Σ wᵢ · δᵢ(u),  100 )"));
-figure("fig1_architecture.png", "Detection pipeline. Lexical and structural rules contribute weights to a single bounded score, which is banded and returned together with the identity of every rule that fired.", 300).forEach(P);
-P(body("where δᵢ(u) is 1 when rule i fires on URL u and 0 otherwise, and "
-  + "wᵢ is that rule's weight. The formulation is intentionally additive and "
-  + "monotone: no rule can reduce another's contribution, so the effect of any "
-  + "single term on the outcome is inspectable in isolation. Both the clamped score "
-  + "and the unclamped sum are retained, the latter so that the reported weights "
-  + "always reconcile with the total.", { noIndent: true }));
+P(body("The detector maps a URL to a bounded integer score. Each rule that "
+  + "matches contributes a fixed weight, weights are summed, and the total is "
+  + "clamped at 100:", { noIndent: true }));
+P(equation("S(u) = min ( sum over i of w_i . d_i(u) ,  100 )"));
+P(body("where d_i(u) is 1 when rule i fires on URL u and 0 otherwise, and w_i is "
+  + "that rule's weight. The form is deliberately additive and monotone: no rule "
+  + "can reduce another's contribution, so the effect of any single term is "
+  + "inspectable in isolation. Fig. 1 shows the pipeline.", { noIndent: true }));
 
-P(subHead("B.  Multilingual vocabulary"));
+figure("fig1_pipeline.png", "Detection pipeline. Lexical and structural rules "
+  + "contribute weights to one bounded score, which is banded and returned "
+  + "together with the identity of every rule that fired.", 275).forEach(P);
+
+P(subHead("B.  Multilingual vocabulary and structural rules"));
 P(body("The lexical component matches a 33-term vocabulary of transliterated "
-  + "phishing lures across four languages. Terms were selected for semantic roles "
-  + "that recur in phishing lures: account, verification, security, urgency and "
-  + "financial instruments. Each matched term contributes a weight of 10. The "
-  + "vocabulary is deduplicated, so a term shared between languages, such as "
-  + "khata and suraksha in Hindi and Telugu, contributes once rather than twice.",
+  + "phishing lures across four languages, listed in Table I. Terms were chosen "
+  + "for semantic roles that recur in lures: account, verification, security, "
+  + "urgency and financial instruments. Each matched term contributes a weight of "
+  + "10. The vocabulary is de-duplicated, so a term shared between languages, "
+  + "such as khata and suraksha in Hindi and Telugu, contributes once.",
   { noIndent: true }));
+
 tableCaption("I", "Multilingual Phishing Vocabulary").forEach(P);
 P(table([960, 400, 3870], [
-  [{ t: "Language" }, { t: "n", a: AlignmentType.CENTER }, { t: "Terms" }],
-  [{ t: "English" }, { t: "9", a: AlignmentType.CENTER },
+  [{ t: "Language" }, { t: "n", a: C }, { t: "Terms" }],
+  [{ t: "English" }, { t: "9", a: C },
    { t: "login, verify, secure, account, update, bank, otp, signin, password" }],
-  [{ t: "Hindi" }, { t: "11", a: AlignmentType.CENTER },
+  [{ t: "Hindi" }, { t: "11", a: C },
    { t: "kyc, aadhaar, pan, banking, verifyotp, suraksha, khata, jaanch, satyapan, turant, seva" }],
-  [{ t: "Tamil" }, { t: "9", a: AlignmentType.CENTER },
+  [{ t: "Tamil" }, { t: "9", a: C },
    { t: "vangi, kanakku, urudhi, puduppi, paathukaappu, seyal, udanadi, otpverify, bankupdate" }],
-  [{ t: "Telugu" }, { t: "4", a: AlignmentType.CENTER },
+  [{ t: "Telugu" }, { t: "4", a: C },
    { t: "dhruvikarinchu, vaddi, runam, podupukhata" }],
 ]));
 
-P(subHead("C.  Structural rules"));
-P(body("Four structural indicators complement the vocabulary. Their weights and "
-  + "thresholds are given in Table II. The at-sign carries double weight because, "
-  + "in a URL, everything preceding it in the authority component is discarded by "
-  + "the browser, making it a direct mechanism for disguising the true host rather "
-  + "than a statistical correlate of one.", { noIndent: true }));
-tableCaption("II", "Rule Weights and Thresholds").forEach(P);
-P(table([1450, 2490, 1290], [
-  [{ t: "Rule" }, { t: "Condition" }, { t: "Weight", a: AlignmentType.CENTER }],
-  [{ t: "keyword" }, { t: "vocabulary term present" }, { t: "10 each", a: AlignmentType.CENTER }],
-  [{ t: "long_url" }, { t: "length > 30 characters" }, { t: "10", a: AlignmentType.CENTER }],
-  [{ t: "at_symbol" }, { t: "'@' present" }, { t: "20", a: AlignmentType.CENTER }],
-  [{ t: "many_dots" }, { t: "more than 3 dots" }, { t: "10", a: AlignmentType.CENTER }],
-]));
-P(note("Weights are inherited unchanged from the prototype system so that the "
-  + "refactored detector remains behaviourally comparable to it."));
+P(body("Four structural indicators complement the vocabulary: a URL longer than "
+  + "30 characters and a URL containing more than three dots each add 10, and the "
+  + "presence of an at-sign adds 20. The at-sign carries double weight because "
+  + "everything preceding it in the authority component is discarded by the "
+  + "browser, making it a direct mechanism for disguising the host rather than a "
+  + "statistical correlate of one. Scores map to three bands: Low below 30, "
+  + "Medium from 30 to 59, and High at 60 and above. The High boundary is the "
+  + "operating threshold used for binary classification. Weights and thresholds "
+  + "are inherited from the prototype system and were never fitted to data, a "
+  + "point Section V returns to."));
 
-P(subHead("D.  Risk bands"));
-P(body("The score is mapped to three bands: Low Risk below 30, Medium Risk from 30 "
-  + "to 59, and High Risk at 60 and above. The High Risk boundary is the operating "
-  + "threshold used for binary classification in Section VI. Because the threshold "
-  + "is a free parameter rather than a property of the method, Section VII reports a "
-  + "sweep across its full range rather than defending the default in isolation.",
+P(subHead("C.  Explainability and matching modes"));
+P(body("The detector returns, alongside the score and band, the identity and "
+  + "weight of every rule that fired. A verdict is therefore an itemised account "
+  + "rather than a bare label. This holds exactly rather than approximately, "
+  + "being a consequence of the additive design rather than a post hoc "
+  + "attribution method. Fig. 2 shows the interface reporting a verdict this way.",
   { noIndent: true }));
+P(body("Two matching modes are provided. Substring matching, the inherited "
+  + "default, reports a term wherever it occurs in the URL. Token matching first "
+  + "splits the URL on non-alphanumeric characters and requires a whole-token "
+  + "match. Substring matching is the more sensitive and the more error-prone; "
+  + "Section V measures the difference."));
 
-P(subHead("E.  Explainability"));
-P(body("The detector returns, alongside the score and band, the identity and weight "
-  + "of every rule that fired. A verdict is therefore not a bare label but an "
-  + "itemised account: a user sees which terms matched and what each contributed. "
-  + "This property is a consequence of the additive design rather than a post hoc "
-  + "attribution method, and it holds exactly rather than approximately.",
-  { noIndent: true }));
+figure("fig5_dashboard_bw.png", "The dashboard classifying a phishing URL. The "
+  + "verdict is accompanied by every rule that fired and its weight, and those "
+  + "weights sum to the reported score of 90.", 300).forEach(P);
 
-figure("fig2_dashboard_phishing.png", "Dashboard classifying a phishing URL that combines "
-  + "English lures with the Hindi/Telugu terms suraksha and khata. The verdict "
-  + "is accompanied by every rule that fired and its weight, and those weights "
-  + "sum to the reported score of 90.", 344).forEach(P);
+P(subHead("D.  Implementation"));
+P(body("The detector is implemented in Python using only the standard library, "
+  + "in a single module of under 200 lines. Three front-ends share it without "
+  + "reimplementing any logic: a command-line interface, a desktop application "
+  + "and a web dashboard. The dataset builder and evaluation harness add roughly "
+  + "1,300 further lines. The system is covered by 208 automated tests, and the "
+  + "code, the dataset and the result files are released so that every figure in "
+  + "this paper can be regenerated.", { noIndent: true }));
 
-figure("fig3_dashboard_legitimate.png", "The same interface on a legitimate URL. Only long_url "
-  + "fires, giving a score of 10 and a Low Risk band. The single fired rule is "
-  + "still itemised, so a user can see that the score reflects length alone and "
-  + "no phishing vocabulary was matched.", 344).forEach(P);
+P(subHead("E.  Dataset construction"));
+P(body("Phishing URLs are drawn from the OpenPhish community feed [12] and "
+  + "legitimate domains from the Tranco top-sites list [13]. Both change daily, "
+  + "so the retrieval date is recorded with every build and raw downloads are "
+  + "cached, allowing a build to be repeated exactly. Duplicates are removed at "
+  + "two levels: exact deduplication normalises case and trailing slashes, and "
+  + "registrable-domain deduplication, computed against the Public Suffix List "
+  + "[14], collapses multiple URLs hosted on one domain. The scope of the second "
+  + "is configurable per class, since phishing feeds list many URLs per "
+  + "compromised host.", { noIndent: true }));
+P(body("A domain can legitimately appear in both classes. Hosting platforms and "
+  + "URL shorteners rank highly in Tranco and are simultaneously used to serve "
+  + "phishing. Such domains are reported and removed from both classes, since "
+  + "retaining them injects label noise that no URL-level feature can resolve. "
+  + "Table II gives the resulting composition."));
 
-figure("fig4_cli.png", "Command-line output for the same two URLs. The "
-  + "command-line and dashboard front-ends call one scoring module, so their "
-  + "verdicts agree by construction; before the consolidation described in "
-  + "Section IV-A they did not.", 344).forEach(P);
-
-figure("fig5_hashing.png", "The accompanying file-integrity tool, which computes "
-  + "MD5, SHA-1 or SHA-256 digests and compares a generated digest against a "
-  + "reference. It is independent of the detector and is included for "
-  + "completeness.", 344).forEach(P);
-
-P(subHead("F.  Matching modes"));
-P(body("Two matching modes are provided. Substring matching, the default, reports a "
-  + "term wherever it occurs in the URL; token matching first splits the URL on "
-  + "non-alphanumeric characters and requires a whole-token match. Substring "
-  + "matching is the more sensitive and the more error-prone: the term pan matches "
-  + "inside japan.com. Token matching removes that class of false positive at the "
-  + "cost of missing terms concatenated with adjacent text, a construction that is "
-  + "itself common in phishing domains. Section VII reports both, since the choice "
-  + "is an empirical question rather than a settled one.", { noIndent: true }));
-
-// IV. Implementation ---------------------------------------------------------
-P(sectionHead("IV.  Implementation"));
-P(body("The detector is implemented in Python using only the standard library, in a "
-  + "single module of under 200 lines. Three front-ends share it without "
-  + "reimplementing any logic: a command-line interface, a Tkinter desktop "
-  + "application, and a Streamlit dashboard that renders the fired rules as a table. "
-  + "The dataset builder, crawler and evaluation harness add roughly 1,300 further "
-  + "lines. The system is covered by 193 automated tests.", { noIndent: true }));
-
-P(subHead("A.  Defect analysis of the prototype"));
-P(body("The present system consolidates an earlier prototype in which the scoring "
-  + "logic had been copied into each front-end. Auditing those copies against one "
-  + "another revealed seven defects, listed in Table III, all of which affected "
-  + "reported scores. We record them because several are of a kind that is silent "
-  + "in use and would corrupt any evaluation performed on the prototype: a "
-  + "duplicated vocabulary entry inflates a score without any visible error, and "
-  + "divergent copies of the vocabulary cause the same URL to receive different "
-  + "verdicts from different interfaces of the same system. Any result obtained "
-  + "from the prototype would have been unreproducible for reasons invisible to the "
-  + "experimenter.", { noIndent: true }));
-tableCaption("III", "Defects Identified and Corrected in the Prototype").forEach(P);
-P(table([450, 2095, 2685], [
-  [{ t: "#" }, { t: "Defect" }, { t: "Effect on results" }],
-  [{ t: "1" }, { t: "Two vocabulary terms listed twice" },
-   { t: "Affected URLs scored 20 instead of 10" }],
-  [{ t: "2" }, { t: "Capitalised term compared to lowercased URL" },
-   { t: "Term could never match; silently dead" }],
-  [{ t: "3" }, { t: "Divergent vocabularies across front-ends" },
-   { t: "Same URL, different score per interface" }],
-  [{ t: "4" }, { t: "Inconsistent banding across front-ends" },
-   { t: "Score of 10 reported both Suspicious and Safe" }],
-  [{ t: "5" }, { t: "Structural rules stored in the keyword list" },
-   { t: "Rule provenance not recoverable from output" }],
-  [{ t: "6" }, { t: "Model loaded by relative path" },
-   { t: "Crash when run from another directory" }],
-  [{ t: "7" }, { t: "No validation of input type" },
-   { t: "Exception on empty or non-string input" }],
-]));
-P(body("Each correction is pinned by a regression test, and the merged vocabulary "
-  + "is the union of the divergent copies. Weights and thresholds were left "
-  + "unchanged throughout, so the consolidation is behaviour-preserving except "
-  + "where a defect made the prior behaviour indefensible."));
-
-// V. Dataset -----------------------------------------------------------------
-P(sectionHead("V.  Dataset Construction"));
-
-P(subHead("A.  Sources"));
-P(body("Phishing URLs are drawn from the OpenPhish community feed, optionally "
-  + "supplemented by PhishTank. Legitimate URLs are derived from the Tranco "
-  + "top-sites list [see Section V-D]. Both phishing feeds are time-varying, so "
-  + "the retrieval timestamp is recorded with every build and raw downloads are "
-  + "cached, allowing a build to be repeated exactly.", { noIndent: true }));
-
-P(subHead("B.  Deduplication"));
-P(body("Duplicates are removed at two levels. Exact deduplication normalises case "
-  + "and trailing slashes. Registrable-domain deduplication, computed against the "
-  + "Public Suffix List, collapses multiple URLs hosted on one domain. The scope of "
-  + "the second is configurable per class, which matters: phishing feeds list many "
-  + "URLs per compromised host, so collapsing them prevents a single host dominating "
-  + "the positive class, whereas the legitimate class is deliberately allowed "
-  + "several paths per domain, for the reason given in Section V-D.", { noIndent: true }));
-
-P(subHead("C.  Cross-class conflicts"));
-P(body("A domain can legitimately appear in both classes. URL shorteners and "
-  + "file-hosting services are ranked highly by Tranco and simultaneously used to "
-  + "host phishing pages. Such domains are reported and, by default, removed from "
-  + "both classes, since retaining them injects label noise that no URL-level "
-  + "feature can resolve.", { noIndent: true }));
-
-P(subHead("D.  A construction artifact in the standard recipe"));
-P(body("Pairing a phishing feed with a top-site list is the conventional way to "
-  + "assemble a URL benchmark, and it introduces a confound severe enough to "
-  + "invalidate the resulting metrics. Tranco distributes registrable domains, not "
-  + "URLs, so the negative class consists of strings such as example.com: short, "
-  + "path-free, containing a single dot. Phishing feeds distribute full URLs, "
-  + "typically long and carrying multi-segment paths. The two classes are therefore "
-  + "separable by string length alone, before any phishing-specific feature is "
-  + "consulted.", { noIndent: true }));
-P(body("Under such a pairing the long_url and many_dots rules do not detect "
-  + "phishing; they detect which file a row came from. A detector reported as "
-  + "accurate on this benchmark would fail on the first legitimate URL with a path, "
-  + "which is to say on most real traffic. We regard results obtained this way as "
-  + "uninformative regardless of their magnitude."));
-P(body("We remove the confound at its source. A crawler visits the homepage of each "
-  + "of the top-ranked domains and records a small number of internal content links, "
-  + "so that the legitimate class consists of genuine URLs with genuine paths. Link "
-  + "selection retains only same-domain HTTP(S) links with a non-trivial path; it "
-  + "excludes static assets, and it excludes authentication and checkout paths, "
-  + "whose own path segments would otherwise import terms such as login and account "
-  + "into the negative class and manufacture false positives that are artifacts of "
-  + "sampling rather than properties of the detector. Selected links are "
-  + "deduplicated by path and spread across distinct top-level path segments. "
-  + "Crawling honours robots.txt, identifies itself, fetches homepages only, and "
-  + "rate-limits its requests."));
-
-P(subHead("E.  Artifact diagnostic"));
-P(body("Because the confound is invisible in headline metrics, the harness measures "
-  + "it directly, reporting mean URL length, mean dot count and the percentage of "
-  + "URLs carrying a path for each class. A large gap in path presence is reported "
-  + "as a warning against interpreting the headline figures. We recommend the "
-  + "diagnostic be reported alongside metrics in any URL-classification study.",
-  { noIndent: true }));
-tableCaption("IV", "Dataset Composition").forEach(P);
+tableCaption("II", "Dataset Composition").forEach(P);
 P(table([3300, 1930], [
-  [{ t: "Quantity" }, { t: "Value", a: AlignmentType.CENTER }],
-  [{ t: "Phishing URLs retrieved (OpenPhish)" }, { t: "300", a: AlignmentType.CENTER }],
-  [{ t: "Legitimate domains read (Tranco)" }, { t: "5,000", a: AlignmentType.CENTER }],
-  [{ t: "Exact duplicates removed" }, { t: "0", a: AlignmentType.CENTER }],
-  [{ t: "Domain duplicates removed" }, { t: "32", a: AlignmentType.CENTER }],
-  [{ t: "Cross-class conflicts removed" }, { t: "196", a: AlignmentType.CENTER }],
-  [{ t: "Domains in both classes" }, { t: "13", a: AlignmentType.CENTER }],
-  [{ t: "Final dataset size" }, { t: "170", a: AlignmentType.CENTER }],
-  [{ t: "Class balance (phishing : legitimate)" }, { t: "85 : 85", a: AlignmentType.CENTER }],
-  [{ t: "Retrieval date" }, { t: "2 Sept. 2026", a: AlignmentType.CENTER }],
+  [{ t: "Quantity" }, { t: "Value", a: C }],
+  [{ t: "Phishing URLs retrieved" }, { t: "300", a: C }],
+  [{ t: "Legitimate domains read" }, { t: "5,000", a: C }],
+  [{ t: "Exact duplicates removed" }, { t: "0", a: C }],
+  [{ t: "Domain duplicates removed" }, { t: "32", a: C }],
+  [{ t: "Cross-class conflicts removed" }, { t: "196", a: C }],
+  [{ t: "Domains present in both classes" }, { t: "13", a: C }],
+  [{ t: "Final dataset size" }, { t: "170", a: C }],
+  [{ t: "Class balance (phishing : legitimate)" }, { t: "85 : 85", a: C }],
+  [{ t: "Retrieval date" }, { t: "2 Sept. 2026", a: C }],
 ]));
-P(note("Fill from the DATASET SUMMARY printed by build_dataset.py."));
 
-tableCaption("V", "Construction Artifact Diagnostic").forEach(P);
+P(subHead("F.  A construction artifact in the standard recipe"));
+P(body("Pairing a phishing feed with a top-sites list is the conventional way to "
+  + "assemble a URL benchmark, and it introduces a confound severe enough to "
+  + "invalidate the resulting metrics. Tranco distributes registrable domains, "
+  + "not URLs, so the negative class consists of short, path-free strings such as "
+  + "example.com. Phishing feeds distribute full URLs, typically longer and "
+  + "carrying multi-segment paths. The two classes are therefore separable by "
+  + "string length before any phishing-specific feature is consulted.",
+  { noIndent: true }));
+P(body("Because the confound is invisible in headline metrics, the harness "
+  + "measures it directly, reporting mean URL length, mean dot count and the "
+  + "percentage of URLs carrying a path for each class. Table III gives the values "
+  + "for this dataset. A gap of 62 percentage points in path presence means a "
+  + "length rule separates the classes because one file contains paths and the "
+  + "other does not. We recommend this diagnostic be reported alongside metrics "
+  + "in any URL-classification study."));
+
+tableCaption("III", "Construction Artifact Diagnostic").forEach(P);
 P(table([2430, 1400, 1400], [
-  [{ t: "Measure" }, { t: "Phishing", a: AlignmentType.CENTER }, { t: "Legitimate", a: AlignmentType.CENTER }],
-  [{ t: "Mean URL length" }, { t: "47.3", a: AlignmentType.CENTER }, { t: "19.6", a: AlignmentType.CENTER }],
-  [{ t: "URLs with a path (%)" }, { t: "62.4", a: AlignmentType.CENTER }, { t: "0.0", a: AlignmentType.CENTER }],
-  [{ t: "Mean dot count" }, { t: "1.9", a: AlignmentType.CENTER }, { t: "1.0", a: AlignmentType.CENTER }],
+  [{ t: "Measure" }, { t: "Phishing", a: C }, { t: "Legitimate", a: C }],
+  [{ t: "Mean URL length" }, { t: "47.3", a: C }, { t: "19.6", a: C }],
+  [{ t: "URLs with a path (%)" }, { t: "62.4", a: C }, { t: "0.0", a: C }],
+  [{ t: "Mean dot count" }, { t: "1.9", a: C }, { t: "1.0", a: C }],
 ]));
-P(note("Fill from the artifact diagnostic printed by evaluate.py. A path-presence "
-  + "gap near zero indicates the confound has been removed."));
 
-// VI. Evaluation methodology -------------------------------------------------
-P(sectionHead("VI.  Evaluation Protocol"));
+// ---------- 4. Experimental protocol ----------
+
+P(sectionHead("IV.  Experimental Protocol"));
 P(body("Phishing is the positive class. A URL is classified as phishing when its "
   + "score reaches the operating threshold of 60. We report accuracy, precision, "
-  + "recall, specificity and F1, together with the confusion matrix. Because the "
-  + "detector is rule-based and fits no parameters to the data, no train-test split "
-  + "is required and none is performed; the entire dataset serves as the test set. "
-  + "This removes a family of leakage concerns but also means the vocabulary must "
-  + "not be revised in response to the measured results, a discipline we observe "
-  + "and state explicitly.", { noIndent: true }));
+  + "recall, specificity and F1 together with the confusion matrix. Because the "
+  + "detector is rule-based and fits no parameters to the data, no train-test "
+  + "split is required and none is performed; the entire dataset serves as the "
+  + "test set. This removes a family of leakage concerns but also means the "
+  + "vocabulary must not be revised in response to the measured results, a "
+  + "discipline we observe and state explicitly.", { noIndent: true }));
 P(body("Three further analyses accompany the headline figures. A threshold sweep "
   + "from 0 to 100 characterises the precision-recall trade-off and situates the "
   + "chosen operating point. A rule-group ablation compares the full rule set "
-  + "against vocabulary-only and structural-only variants, isolating the "
-  + "contribution of the multilingual terms; ablations are computed by removing "
-  + "rules from the scorer's own output rather than by reimplementing the scoring "
-  + "logic, so a variant cannot diverge from the deployed detector. A matching-mode "
-  + "comparison contrasts substring and token matching. Per-rule statistics report, "
-  + "for each rule, its firing rate within each class and its precision when it "
-  + "fires."));
+  + "against vocabulary-only and structural-only variants; ablations are computed "
+  + "by removing rules from the scorer's own output rather than by reimplementing "
+  + "the scoring logic, so a variant cannot diverge from the deployed detector. A "
+  + "matching-mode comparison contrasts substring and token matching. Because a "
+  + "badly calibrated threshold can drive every variant to zero and make the "
+  + "comparison vacuous, the ablation and the mode comparison are reported at the "
+  + "best-F1 threshold as well as at the configured one. Per-rule statistics "
+  + "report, for each rule, its firing rate within each class."));
 
-// VII. Results ---------------------------------------------------------------
-P(sectionHead("VII.  Results and Discussion"));
+// ---------- 5. Results ----------
+
+P(sectionHead("V.  Results"));
 P(body("Every figure and table in this section comes from one execution of the "
-  + "evaluation harness, on 2 September 2026, over the dataset described in "
-  + "Section V. The result is negative and is reported as found.", { noIndent: true }));
+  + "harness over the dataset of Section III-E.", { noIndent: true }));
 
-tableCaption("VI", "Classification Performance, Configured Against Best Threshold").forEach(P);
-P(table([2430, 1400, 1400], [
-  [{ t: "Metric" }, { t: "t = 60", a: AlignmentType.CENTER }, { t: "t = 10", a: AlignmentType.CENTER }],
-  [{ t: "True positives" }, { t: "0", a: AlignmentType.CENTER }, { t: "55", a: AlignmentType.CENTER }],
-  [{ t: "False positives" }, { t: "0", a: AlignmentType.CENTER }, { t: "1", a: AlignmentType.CENTER }],
-  [{ t: "True negatives" }, { t: "85", a: AlignmentType.CENTER }, { t: "84", a: AlignmentType.CENTER }],
-  [{ t: "False negatives" }, { t: "85", a: AlignmentType.CENTER }, { t: "30", a: AlignmentType.CENTER }],
-  [{ t: "Accuracy" }, { t: "0.500", a: AlignmentType.CENTER }, { t: "0.818", a: AlignmentType.CENTER }],
-  [{ t: "Precision" }, { t: "0.000", a: AlignmentType.CENTER }, { t: "0.982", a: AlignmentType.CENTER }],
-  [{ t: "Recall" }, { t: "0.000", a: AlignmentType.CENTER }, { t: "0.647", a: AlignmentType.CENTER }],
-  [{ t: "Specificity" }, { t: "1.000", a: AlignmentType.CENTER }, { t: "0.988", a: AlignmentType.CENTER }],
-  [{ t: "F1 score" }, { t: "0.000", a: AlignmentType.CENTER }, { t: "0.780", a: AlignmentType.CENTER }],
-]));
-P(note("t = 60 is the threshold inherited from the prototype; t = 10 is the best point on the sweep of Fig. 7. Source: results/headline.csv and results/threshold_sweep.csv."));
-
-tableCaption("VII", "Rule-Group Ablation at Both Operating Points").forEach(P);
-P(table([620, 1560, 780, 780, 780, 710], [
-  [{ t: "t" }, { t: "Variant" }, { t: "Acc.", a: AlignmentType.CENTER }, { t: "Prec.", a: AlignmentType.CENTER },
-   { t: "Rec.", a: AlignmentType.CENTER }, { t: "F1", a: AlignmentType.CENTER }],
-  [{ t: "60", a: AlignmentType.CENTER }, { t: "All rules" }, { t: "0.500", a: AlignmentType.CENTER }, { t: "0.000", a: AlignmentType.CENTER },
-   { t: "0.000", a: AlignmentType.CENTER }, { t: "0.000", a: AlignmentType.CENTER }],
-  [{ t: "60", a: AlignmentType.CENTER }, { t: "Vocabulary only" }, { t: "0.500", a: AlignmentType.CENTER }, { t: "0.000", a: AlignmentType.CENTER },
-   { t: "0.000", a: AlignmentType.CENTER }, { t: "0.000", a: AlignmentType.CENTER }],
-  [{ t: "60", a: AlignmentType.CENTER }, { t: "Structural only" }, { t: "0.500", a: AlignmentType.CENTER }, { t: "0.000", a: AlignmentType.CENTER },
-   { t: "0.000", a: AlignmentType.CENTER }, { t: "0.000", a: AlignmentType.CENTER }],
-  [{ t: "10", a: AlignmentType.CENTER }, { t: "All rules" }, { t: "0.818", a: AlignmentType.CENTER }, { t: "0.982", a: AlignmentType.CENTER },
-   { t: "0.647", a: AlignmentType.CENTER }, { t: "0.780", a: AlignmentType.CENTER }],
-  [{ t: "10", a: AlignmentType.CENTER }, { t: "Vocabulary only" }, { t: "0.529", a: AlignmentType.CENTER }, { t: "0.857", a: AlignmentType.CENTER },
-   { t: "0.071", a: AlignmentType.CENTER }, { t: "0.130", a: AlignmentType.CENTER }],
-  [{ t: "10", a: AlignmentType.CENTER }, { t: "Structural only" }, { t: "0.824", a: AlignmentType.CENTER }, { t: "1.000", a: AlignmentType.CENTER },
-   { t: "0.647", a: AlignmentType.CENTER }, { t: "0.786", a: AlignmentType.CENTER }],
-]));
-P(note("At the configured threshold of 60 every variant scores zero, so the comparison is vacuous there and is reported at the best operating point as well. Removing the vocabulary raises F1 from 0.780 to 0.786."));
-
-tableCaption("VIII", "Substring Against Token Matching").forEach(P);
-P(table([620, 1560, 780, 780, 780, 710], [
-  [{ t: "t" }, { t: "Mode" }, { t: "Acc.", a: AlignmentType.CENTER }, { t: "Prec.", a: AlignmentType.CENTER },
-   { t: "Rec.", a: AlignmentType.CENTER }, { t: "F1", a: AlignmentType.CENTER }],
-  [{ t: "60", a: AlignmentType.CENTER }, { t: "Substring" }, { t: "0.500", a: AlignmentType.CENTER }, { t: "0.000", a: AlignmentType.CENTER },
-   { t: "0.000", a: AlignmentType.CENTER }, { t: "0.000", a: AlignmentType.CENTER }],
-  [{ t: "60", a: AlignmentType.CENTER }, { t: "Token" }, { t: "0.500", a: AlignmentType.CENTER }, { t: "0.000", a: AlignmentType.CENTER },
-   { t: "0.000", a: AlignmentType.CENTER }, { t: "0.000", a: AlignmentType.CENTER }],
-  [{ t: "10", a: AlignmentType.CENTER }, { t: "Substring" }, { t: "0.818", a: AlignmentType.CENTER }, { t: "0.982", a: AlignmentType.CENTER },
-   { t: "0.647", a: AlignmentType.CENTER }, { t: "0.780", a: AlignmentType.CENTER }],
-  [{ t: "10", a: AlignmentType.CENTER }, { t: "Token" }, { t: "0.824", a: AlignmentType.CENTER }, { t: "1.000", a: AlignmentType.CENTER },
-   { t: "0.647", a: AlignmentType.CENTER }, { t: "0.786", a: AlignmentType.CENTER }],
-]));
-P(note("Vacuous at the configured threshold, as above. At the best operating point token matching is strictly better, removing the substring false positive described in Section VII-E."));
-
-figure("fig6_threshold_sweep.png", "Precision, recall and F1 across the full threshold range. The dotted line marks the operating threshold of 60.", 344).forEach(P);
-figure("fig7_ablation.png", "Rule-group ablation. The gap between the full rule set and the vocabulary-only variant is the contribution of the multilingual terms.", 344).forEach(P);
-figure("fig8_per_rule.png", "Firing rate of each rule within each class. A rule that fires often on legitimate URLs is a source of false positives.", 344).forEach(P);
-
-P(subHead("A.  The detector classifies nothing at its configured threshold"));
+P(subHead("A.  Nothing is detected at the configured threshold"));
 P(body("At the High Risk threshold of 60 the detector labels no URL as phishing. "
   + "All 85 phishing URLs are false negatives and all 85 legitimate URLs are true "
   + "negatives, so accuracy equals the base rate of 0.500, specificity is 1.000 "
   + "by vacancy, and precision, recall and F1 are all zero. A detector that never "
   + "raises an alarm is trivially specific and useless.", { noIndent: true }));
-P(body("The threshold sweep in Fig. 7 shows this is a calibration failure rather "
-  + "than an absence of signal. F1 peaks at 0.780 at a threshold of 10, where "
-  + "precision is 0.982 and recall 0.647, and decays to zero by a threshold of "
-  + "40. The configured threshold is six times the best available one. Because "
-  + "the weights and bands were inherited from the prototype and never fitted, "
-  + "nothing in the original system could have revealed this: a rule-based "
-  + "detector whose thresholds are asserted rather than measured can be published, "
-  + "demonstrated and adopted while detecting nothing."));
-P(body("Reaching an F1 of 0.780 requires accepting a score of 10, which is a "
-  + "single fired rule. The system is therefore not operating as a weighted "
-  + "multi-rule scorer at all; it is operating as a single-indicator alarm, and "
-  + "Section VII-C identifies the indicator."));
+P(body("The sweep in Fig. 3 shows this is a calibration failure rather than an "
+  + "absence of signal. F1 peaks at 0.780 at a threshold of 10, where precision is "
+  + "0.982 and recall 0.647, and decays to zero by 40. The configured threshold is "
+  + "six times the best available one. Because the weights and bands were "
+  + "inherited and never fitted, nothing in the original system could have "
+  + "revealed this: a rule-based detector whose thresholds are asserted rather "
+  + "than measured can be demonstrated and adopted while detecting nothing. "
+  + "Table IV contrasts the two operating points."));
+P(body("Reaching 0.780 requires accepting a score of 10, which is a single fired "
+  + "rule. The system is therefore not operating as a weighted multi-rule scorer "
+  + "at all, but as a single-indicator alarm."));
 
-P(subHead("B.  The multilingual vocabulary has negative marginal value"));
-P(body("Fig. 9 gives the firing rate of each rule within each class. Four of the "
+figure("fig2_threshold_sweep.png", "Precision, recall and F1 across the full "
+  + "threshold range. Performance is already zero well before the configured "
+  + "threshold of 60.").forEach(P);
+
+tableCaption("IV", "Performance at the Configured and Best Thresholds").forEach(P);
+P(table([2430, 1400, 1400], [
+  [{ t: "Metric" }, { t: "t = 60", a: C }, { t: "t = 10", a: C }],
+  [{ t: "True positives" }, { t: "0", a: C }, { t: "55", a: C }],
+  [{ t: "False positives" }, { t: "0", a: C }, { t: "1", a: C }],
+  [{ t: "True negatives" }, { t: "85", a: C }, { t: "84", a: C }],
+  [{ t: "False negatives" }, { t: "85", a: C }, { t: "30", a: C }],
+  [{ t: "Accuracy" }, { t: "0.500", a: C }, { t: "0.818", a: C }],
+  [{ t: "Precision" }, { t: "0.000", a: C }, { t: "0.982", a: C }],
+  [{ t: "Recall" }, { t: "0.000", a: C }, { t: "0.647", a: C }],
+  [{ t: "Specificity" }, { t: "1.000", a: C }, { t: "0.988", a: C }],
+  [{ t: "F1 score" }, { t: "0.000", a: C }, { t: "0.780", a: C }],
+]));
+
+P(subHead("B.  The vocabulary has negative marginal value"));
+P(body("Fig. 4 gives the firing rate of each rule within each class. Four of the "
   + "33 vocabulary terms fire anywhere in the dataset: login on three phishing "
   + "URLs, and update, account and pan on one each. None of the Hindi, Tamil or "
   + "Telugu terms fire at all.", { noIndent: true }));
-P(body("The ablation of Table VII quantifies what that costs. At the best "
-  + "operating point the vocabulary alone reaches an F1 of 0.130, catching six of "
-  + "85 phishing URLs at a precision of 0.857. The structural rules alone reach "
-  + "0.786. The full rule set reaches 0.780. Removing the multilingual vocabulary "
-  + "therefore improves the detector, because the six URLs it finds are already "
-  + "found by the structural rules while its single false positive is not "
-  + "otherwise produced. On this corpus the contribution of the vocabulary is not "
-  + "small; it is negative."));
-P(body("One of its six hits is spurious in any case. The term pan matches inside "
-  + "the hostname cpanel.site, which is a hosting control panel and not a "
-  + "reference to a Permanent Account Number. The rule fires for the wrong reason "
-  + "and is counted as a true positive only because the URL happens to be "
-  + "phishing for unrelated reasons."));
-P(body("The reading we favour is scope rather than defect. OpenPhish is a global "
-  + "feed, and no URL in the retrieved sample contains a single non-ASCII "
-  + "character, let alone Devanagari, Tamil or Telugu script or a transliteration "
-  + "of one. A vocabulary built for regional-language lures cannot be exercised by "
-  + "a corpus that contains none. This evaluation therefore does not show that "
-  + "multilingual keyword matching fails; it shows that the standard public "
-  + "benchmark cannot test it, and that on a global feed the vocabulary is dead "
-  + "weight. Both statements are worth making, and neither supports a claim about "
-  + "multilingual detection performance in either direction."));
+P(body("The ablation in Table V quantifies what that costs. At the best operating "
+  + "point the vocabulary alone reaches F1 0.130, catching six of 85 phishing "
+  + "URLs. The structural rules alone reach 0.786. The full rule set reaches "
+  + "0.780. Removing the multilingual vocabulary therefore improves the detector: "
+  + "the six URLs it finds are already found by the structural rules, while its "
+  + "single false positive is not otherwise produced. On this corpus the "
+  + "contribution of the vocabulary is not small; it is negative."));
+P(body("One of the six hits is spurious in any case. The term pan matches inside "
+  + "the hostname cpanel.site, a hosting control panel and not a reference to a "
+  + "Permanent Account Number. The rule fires for the wrong reason and is counted "
+  + "as a true positive only because the URL happens to be phishing for unrelated "
+  + "reasons."));
 
-P(subHead("C.  What detection remains is the construction artifact"));
+tableCaption("V", "Rule-Group Ablation at Both Operating Points").forEach(P);
+P(table([620, 1560, 780, 780, 780, 710], [
+  [{ t: "t" }, { t: "Variant" }, { t: "Acc.", a: C }, { t: "Prec.", a: C },
+   { t: "Rec.", a: C }, { t: "F1", a: C }],
+  [{ t: "60", a: C }, { t: "All rules" }, { t: "0.500", a: C }, { t: "0.000", a: C },
+   { t: "0.000", a: C }, { t: "0.000", a: C }],
+  [{ t: "60", a: C }, { t: "Vocabulary only" }, { t: "0.500", a: C }, { t: "0.000", a: C },
+   { t: "0.000", a: C }, { t: "0.000", a: C }],
+  [{ t: "60", a: C }, { t: "Structural only" }, { t: "0.500", a: C }, { t: "0.000", a: C },
+   { t: "0.000", a: C }, { t: "0.000", a: C }],
+  [{ t: "10", a: C }, { t: "All rules" }, { t: "0.818", a: C }, { t: "0.982", a: C },
+   { t: "0.647", a: C }, { t: "0.780", a: C }],
+  [{ t: "10", a: C }, { t: "Vocabulary only" }, { t: "0.529", a: C }, { t: "0.857", a: C },
+   { t: "0.071", a: C }, { t: "0.130", a: C }],
+  [{ t: "10", a: C }, { t: "Structural only" }, { t: "0.824", a: C }, { t: "1.000", a: C },
+   { t: "0.647", a: C }, { t: "0.786", a: C }],
+]));
+P(note("At the configured threshold every variant scores zero, so the comparison "
+  + "is vacuous there and is repeated at the best operating point."));
+
+figure("fig3_ablation.png", "Rule-group ablation at the best operating point. "
+  + "Removing the multilingual vocabulary raises F1 from 0.780 to 0.786.").forEach(P);
+
+P(subHead("C.  What detection remains is the artifact"));
 P(body("One rule accounts for almost all of the behaviour. The long_url rule "
   + "fires on 55 of 85 phishing URLs and on none of the legitimate URLs, a "
-  + "within-class rate of 0.647 against 0.000. At the best operating point of "
-  + "10, a score of 10 is in most cases long_url alone, so the reported F1 of "
-  + "0.780 is very largely the performance of a single length test.",
-  { noIndent: true }));
-P(body("Table V shows why that number must not be read as detection. Phishing "
-  + "URLs in this dataset average 47.3 characters and carry a path 62.4 per cent "
-  + "of the time; legitimate URLs average 19.6 characters and carry a path 0.0 "
-  + "per cent of the time, because Tranco distributes registrable domains rather "
-  + "than URLs. The classes differ by 62 percentage points in path presence "
-  + "before any phishing-specific property is consulted. A length rule separates "
-  + "them because one file contains paths and the other does not."));
-P(body("This is the artifact of Section V-D, measured on real data. Any system "
-  + "evaluated on a benchmark built this way will report a strong length feature "
-  + "and will fail on the first legitimate URL that has a path, which is to say "
-  + "on most real traffic. We regard the headline F1 of 0.780 as uninformative "
-  + "about phishing detection for exactly this reason, and report it only "
-  + "alongside the diagnostic that undermines it."));
+  + "within-class rate of 0.647 against 0.000. At the best operating point a "
+  + "score of 10 is in most cases long_url alone, so the reported F1 of 0.780 is "
+  + "very largely the performance of a single length test.", { noIndent: true }));
+P(body("Table III shows why that number must not be read as detection. The "
+  + "classes differ by 62 percentage points in path presence before any "
+  + "phishing-specific property is consulted, because the negative class consists "
+  + "of bare domains. A length rule separates them for that reason alone. Any "
+  + "system evaluated on a benchmark built this way will report a strong length "
+  + "feature and will fail on the first legitimate URL that has a path, which is "
+  + "to say on most real traffic."));
+
+figure("fig4_per_rule.png", "Firing rate of each rule within each class. One "
+  + "structural rule dominates; the vocabulary terms are barely present.").forEach(P);
 
 P(subHead("D.  Live phishing is hosted on legitimate infrastructure"));
 P(body("The largest single effect in the build was not anticipated. Of 300 "
-  + "phishing URLs retrieved, 196 rows were removed as cross-class conflicts: "
-  + "their registrable domains also appear in the Tranco top sites. Thirteen "
-  + "domains are shared between the classes, and their character is uniform: "
-  + "github.io, netlify.app, vercel.app, pages.dev, blogspot.com, linktr.ee, "
-  + "squarespace.com, gitbook.io, backblazeb2.com and b-cdn.net.",
+  + "phishing URLs retrieved, 196 rows were removed as cross-class conflicts "
+  + "because their registrable domains also appear among the top sites. Thirteen "
+  + "domains are shared between the classes and their character is uniform: "
+  + "hosting, publishing and content-delivery platforms. Roughly two thirds of "
+  + "the live phishing in this feed was served from infrastructure that is itself "
+  + "entirely legitimate and highly ranked.", { noIndent: true }));
+P(body("The consequence for URL classification is direct. On this data no "
+  + "domain-level or reputation-level feature can separate the classes, because "
+  + "the domain is shared. Detection must come from the path, the subdomain label "
+  + "or the page, none of which a registrable-domain feature sees. This is "
+  + "consistent with measurement work documenting attacker reliance on shared "
+  + "infrastructure [11]."));
+P(body("Inspecting the phishing class sharpens the point further. Thirty-six per "
+  + "cent of the URLs impersonate a brand by misspelling it in the hostname, in "
+  + "forms such as whastapp-center.my, robiox.com.py and steamcommunutty.com. "
+  + "Fifteen per cent are served from general-purpose hosting platforms and "
+  + "eleven per cent from link shorteners or QR redirectors, which carry no "
+  + "attacker-chosen text at all. The brands being impersonated are themselves "
+  + "present in the legitimate class. Not one URL in the sample contains a "
+  + "non-ASCII character."));
+
+P(subHead("E.  Token matching is better than substring matching"));
+P(body("At the configured threshold both matching modes score zero. At the best "
+  + "operating point they separate: substring matching reaches F1 0.780 and token "
+  + "matching 0.786, the whole difference being one false positive that token "
+  + "matching does not make. The legitimate URL windowsupdate.com contains the "
+  + "term update as a substring of windowsupdate, and substring matching duly "
+  + "reports it; token matching splits the URL and matches neither token. The "
+  + "same mechanism produced the spurious pan match inside cpanel.site. Substring "
+  + "matching is the second inherited parameter that measurement shows to be the "
+  + "wrong default.", { noIndent: true }));
+
+// ---------- 6. Discussion and Limitations ----------
+
+P(sectionHead("VI.  Discussion and Limitations"));
+P(body("Two readings of the vocabulary result are available and they differ in "
+  + "what they license. The narrow reading is that the vocabulary failed. The "
+  + "reading we favour is that the corpus cannot test it: OpenPhish is a global "
+  + "feed, no URL in the retrieved sample contains a single non-ASCII character, "
+  + "and the campaigns live on the day of retrieval were not aimed at Hindi, "
+  + "Tamil or Telugu speakers. A vocabulary built for regional-language lures "
+  + "cannot be exercised by a corpus that contains none. This evaluation "
+  + "therefore does not show that multilingual keyword matching fails in general; "
+  + "it shows that the standard public benchmark cannot test it, and that on a "
+  + "global feed the vocabulary is dead weight.", { noIndent: true }));
+P(body("A deeper objection applies regardless of language. In this corpus the "
+  + "deception is carried by the spelling of the domain, not by lure words in the "
+  + "path. A vocabulary of terms such as verify and login is looking in a place "
+  + "the attacker no longer uses. What would detect these URLs is string "
+  + "similarity against a list of known brands, which is a different mechanism "
+  + "from keyword matching and is not what this detector implements. That "
+  + "conclusion is independent of which languages the vocabulary covers."));
+P(body("Six limitations bound these findings, and none is dissolved by framing.",
   { noIndent: true }));
-P(body("These are hosting, publishing and content-delivery platforms. Roughly "
-  + "two thirds of the live phishing in this feed was served from infrastructure "
-  + "that is itself entirely legitimate and highly ranked. The consequence for "
-  + "URL classification is direct: on this data no domain-level or "
-  + "reputation-level feature can separate the classes, because the domain is "
-  + "shared. Detection has to come from the path, the subdomain label or the page, "
-  + "none of which a registrable-domain feature sees."));
-P(body("Inspecting the phishing class directly sharpens the point. Thirty-six "
-  + "per cent of the URLs impersonate a brand by misspelling it in the hostname: "
-  + "whastapp-center.my, robiox.com.py, roblox.ly, steamcommunutty.com, "
-  + "helpnetfllix.shop. Fifteen per cent are served from general-purpose hosting "
-  + "platforms and eleven per cent from link shorteners or QR redirectors, which "
-  + "carry no attacker-chosen text at all. Roblox, WhatsApp, Netflix and Microsoft "
-  + "are themselves present in the legitimate class: the attack is to register a "
-  + "domain that resembles one of the top sites.", { noIndent: true }));
-P(body("The deception in this corpus is therefore carried by the spelling of the "
-  + "domain, not by lure words in the path. A vocabulary of terms such as verify "
-  + "and login is looking in a place the attacker no longer uses. What would "
-  + "detect these URLs is string similarity against a list of known brands, which "
-  + "is a different mechanism from keyword matching and is not what this detector "
-  + "implements."));
-
-P(body("This also explains part of Section VII-B. A phishing URL of the form "
-  + "https://random-name.pages.dev/ has no lexical surface for a keyword rule to "
-  + "match: the attacker-chosen text sits in a subdomain generated to look "
-  + "arbitrary, not in a path spelling out verify or login. A vocabulary-based "
-  + "detector is being asked to read words that the current hosting pattern has "
-  + "removed."));
-
-P(subHead("E.  Token matching is strictly better than substring matching"));
-P(body("At the configured threshold both matching modes score zero and the "
-  + "comparison is vacuous. At the best operating point they separate: substring "
-  + "matching reaches an F1 of 0.780 and token matching 0.786, the whole "
-  + "difference being one false positive that token matching does not make.",
-  { noIndent: true }));
-P(body("That false positive is instructive. The legitimate URL "
-  + "https://windowsupdate.com contains the vocabulary term update as a "
-  + "substring of windowsupdate, and substring matching duly reports it. Token "
-  + "matching splits the URL on non-alphanumeric characters, finds the tokens "
-  + "windowsupdate and com, and matches neither. The same mechanism produced the "
-  + "spurious pan match inside cpanel.site noted in Section VII-B."));
-P(body("The prototype used substring matching, and this is the second parameter "
-  + "inherited from it that measurement shows to be the wrong choice. Token "
-  + "matching should be the default. The margin here rests on a single URL and is "
-  + "not by itself strong evidence, but it points the same way as the mechanism, "
-  + "and the mechanism is not in doubt."));
-
-// --- VIII. Threats to validity ---------------------------------------------
-P(sectionHead("VIII.  Threats to Validity and Limitations"));
-P(body("Six limitations bound these findings, and none of them is dissolved by "
-  + "framing.", { noIndent: true }));
 P(bullet("Scale. One hundred and seventy URLs after deduplication, from a single "
   + "feed on a single day. The negative result at the configured threshold is "
   + "unambiguous at this scale, since zero true positives is not a marginal "
-  + "measurement, but the threshold-10 figure rests on 85 positives and should "
-  + "be treated as indicative."));
+  + "measurement, but the threshold-10 figures rest on 85 positives and should be "
+  + "treated as indicative. The margin between substring and token matching rests "
+  + "on a single URL."));
 P(bullet("Single source and single day. Both feeds change daily. A different "
   + "retrieval date would give a different phishing population, and the hosting "
-  + "finding of Section VII-D in particular should be replicated across dates "
-  + "before it is generalised."));
-P(bullet("The corpus cannot test the contribution. The multilingual vocabulary "
-  + "is unexercised here. Nothing in this paper establishes whether it works, and "
-  + "the absence of an India-targeted evaluation corpus is the binding constraint "
-  + "on answering that."));
-P(bullet("The negative class is not URLs. Tranco supplies registrable domains, "
-  + "and the crawler that would supply genuine content URLs was implemented but "
-  + "not used for the reported run. The artifact is therefore present in these "
-  + "numbers and is reported rather than removed."));
+  + "and hostname-spelling findings in particular should be replicated across "
+  + "dates before being generalised."));
+P(bullet("The corpus cannot test the contribution. Nothing here establishes "
+  + "whether the multilingual vocabulary works, and the absence of an "
+  + "India-targeted evaluation corpus is the binding constraint on answering "
+  + "that."));
+P(bullet("The negative class is not URLs. Tranco supplies registrable domains. A "
+  + "crawler that collects genuine content URLs was implemented but not used for "
+  + "the reported run, so the artifact is present in these numbers and is "
+  + "reported rather than removed."));
 P(bullet("No trained baseline. Whether a supervised classifier would extract more "
-  + "signal from the same 170 URLs is untested, so the comparison that would "
+  + "signal from the same URLs is untested, so the comparison that would "
   + "establish what rule-based detection gives up is absent."));
-P(bullet("Weights are asserted. The rule weights are inherited from the prototype "
-  + "and were never fitted. The threshold result shows what asserted parameters "
-  + "cost; the weights themselves are open to the same objection and were not "
-  + "re-examined here."));
+P(bullet("Weights are asserted. The rule weights were inherited and never fitted. "
+  + "The threshold result shows what asserted parameters cost; the weights "
+  + "themselves are open to the same objection and were not re-examined."));
 
-// --- IX. Conclusion ---------------------------------------------------------
-P(sectionHead("IX.  Conclusion and Future Work"));
+// ---------- 7. Conclusion ----------
+
+P(sectionHead("VII.  Conclusion"));
 P(body("This paper specified a rule-based multilingual phishing URL detector, "
   + "built an evaluation protocol around it, and reported what the protocol "
-  + "returned. At the risk threshold the system was configured with, it detects "
-  + "nothing: zero true positives on 85 phishing URLs, F1 of zero, accuracy equal "
-  + "to the base rate. The best attainable operating point is at one sixth of "
-  + "that threshold, and even there the performance is very largely a single "
-  + "URL-length rule that the paper's own diagnostic identifies as an artifact of "
-  + "benchmark construction.", { noIndent: true }));
-P(body("The multilingual vocabulary that motivated the work is inert on this "
-  + "corpus: four of 33 terms fire, none of them in the three regional languages "
-  + "the vocabulary was written for. We do not conclude that multilingual keyword "
-  + "matching fails. We conclude that the standard public benchmark cannot test "
-  + "it, which is a different and more actionable statement."));
-P(body("The findings that survive are the ones the pipeline produced rather than "
-  + "the detector. Two thirds of a live phishing feed was hosted on domains that "
-  + "also rank among the top sites, so domain-level features are blind on this "
-  + "data by construction. And the conventional pairing of a phishing feed with a "
-  + "top-site list produces classes separable by string length alone, at a "
-  + "62-point gap in path presence here, which is sufficient on its own to "
+  + "returned. At the threshold the system was configured with it detects "
+  + "nothing: zero true positives on 85 phishing URLs and accuracy equal to the "
+  + "base rate. The best attainable operating point lies at one sixth of that "
+  + "threshold, and even there the performance is very largely a single "
+  + "URL-length rule that our own diagnostic identifies as an artifact of "
+  + "benchmark construction. An ablation shows the multilingual vocabulary's "
+  + "marginal value to be negative.", { noIndent: true }));
+P(body("We do not conclude that multilingual keyword matching fails. We conclude "
+  + "that the standard public benchmark cannot test it, which is a different and "
+  + "more actionable statement, and that on current phishing the mechanism is "
+  + "poorly matched to where the deception is carried."));
+P(body("The findings that survive came from the pipeline rather than the "
+  + "detector. Two thirds of a live phishing feed was hosted on domains that also "
+  + "rank among the top sites, so domain-level features are blind on this data by "
+  + "construction. And the conventional pairing of a phishing feed with a "
+  + "top-sites list produces classes separable by string length alone, at a "
+  + "62-point gap in path presence here, which is enough on its own to "
   + "manufacture a strong-looking result from a rule encoding no knowledge of "
   + "phishing. We recommend the construction diagnostic be reported before any "
   + "metric in URL-classification work."));
-P(body("Future work follows directly from the limitations. The threshold and the "
-  + "weights should be fitted on held-out data rather than asserted. The "
-  + "legitimate class should be collected with the crawler already implemented "
-  + "here, so that the artifact is removed rather than reported. An India-targeted "
-  + "phishing corpus is needed before any claim about the multilingual vocabulary "
-  + "can be made, and assembling one is the single most valuable next step. A "
-  + "supervised baseline on the same data would establish what the rule-based "
-  + "approach gives up in accuracy and gains in interpretability. Finally, the "
-  + "hosting result suggests that subdomain labels and path tokens, rather than "
-  + "registrable domains, are where lexical detection now has to operate."));
-P(body("A protocol that reports its own detector as ineffective, and that "
-  + "identifies the artifact which would otherwise have flattered it, is doing "
-  + "what it was built to do."));
+P(body("Future work follows from the limitations. Thresholds and weights should "
+  + "be fitted on held-out data rather than asserted. The legitimate class should "
+  + "be collected with the crawler already implemented, so the artifact is "
+  + "removed rather than reported. An India-targeted phishing corpus is needed "
+  + "before any claim about the multilingual vocabulary can be made, and "
+  + "assembling one is the single most valuable next step. Finally, the hosting "
+  + "and spelling results suggest that subdomain labels, path tokens and string "
+  + "similarity to known brands, rather than registrable domains and lure "
+  + "keywords, are where lexical detection now has to operate."));
 
-P(sectionHead("Acknowledgment"));
-P(body("The authors thank the Department of Data Science and Cyber Security, "
-  + "Karunya Institute of Technology and Sciences, for guidance and support, and "
-  + "acknowledge OpenPhish and the Tranco project, whose public feeds made the "
-  + "evaluation in this paper possible, together with the maintainers of the "
-  + "Public Suffix List.", { noIndent: true }));
+// ---------- 8. References ----------
 
-// References -----------------------------------------------------------------
-P(sectionHead("References"));
+P(sectionHead("VIII.  References"));
 [
-  "S. Marchal, J. François, R. State, and T. Engel, \"PhishStorm: Detecting Phishing With Streaming Analytics,\" IEEE Trans. Netw. Serv. Manag., vol. 11, no. 4, pp. 458–471, Dec. 2014.",
-  "M. Khonji, Y. Iraqi, and A. Jones, \"Phishing Detection: A Literature Survey,\" IEEE Commun. Surveys Tuts., vol. 15, no. 4, pp. 2091–2121, 2013.",
-  "A. K. Jain and B. B. Gupta, \"Phishing Detection: Analysis of Visual Similarity Based Approaches,\" Security and Communication Networks, vol. 10, no. 13, pp. 2224–2240, 2017.",
-  "A. Le, A. Markopoulou, and M. Faloutsos, \"PhishDef: URL Names Say It All,\" in Proc. IEEE INFOCOM Workshops, 2011, pp. 191–196.",
-  "A. K. Jain and B. B. Gupta, \"A Machine Learning Based Approach for Phishing Detection Using Hyperlinks Information,\" J. Ambient Intell. Humaniz. Comput., vol. 10, no. 1, pp. 201–217, 2019.",
   "Anti-Phishing Working Group, \"Phishing Activity Trends Report,\" APWG, 2024.",
-  "Verizon, \"2024 Data Breach Investigations Report,\" Verizon Enterprise, 2024.",
-  "S. Garera, N. Provos, M. Chew, and A. D. Rubin, \"A Framework for Detection and Measurement of Phishing Attacks,\" in Proc. ACM Workshop on Recurring Malcode, 2007.",
-  "J. Ma, L. K. Saul, S. Savage, and G. M. Voelker, \"Beyond Blacklists: Learning to Detect Malicious Web Sites from Suspicious URLs,\" in Proc. ACM SIGKDD, 2009, pp. 1245–1254.",
-  "R. Verma and K. Dyer, \"On the Character of Phishing URLs: Accurate and Robust Statistical Learning Classifiers,\" in Proc. ACM CODASPY, 2015, pp. 111–122.",
-  "B. B. Gupta, N. A. G. Arachchilage, and K. E. Psannis, \"Defending Against Phishing Attacks: Taxonomy of Methods, Current Issues and Future Directions,\" Telecommun. Syst., vol. 67, no. 2, pp. 247–267, 2018.",
-  "X. Zhang, Y. Zeng, and H. Chen, \"A Hybrid URL Phishing Detection Framework Based on Lexical and Structural Features,\" IEEE Access, vol. 9, pp. 118250–118263, 2021.",
-  "R. Vinayakumar, K. P. Soman, and P. Poornachandran, \"Applying Deep Learning Approaches for Network Security and Phishing Detection,\" in Proc. IEEE ICACCI, 2019.",
-  "V. Le Pochat, T. Van Goethem, S. Tajalizadehkhoob, M. Korczyński, and W. Joosen, \"Tranco: A Research-Oriented Top Sites Ranking Hardened Against Manipulation,\" in Proc. NDSS, 2019.",
-  "OpenPhish, \"OpenPhish Phishing Intelligence Feed.\" [Online]. Available: https://openphish.com/",
-  "Mozilla Foundation, \"Public Suffix List.\" [Online]. Available: https://publicsuffix.org/",
+  "Verizon, \"2024 Data Breach Investigations Report,\" Verizon Business, 2024.",
+  "A. Oest, P. Zhang, B. Wardman, E. Nunes, J. Burgis, A. Zand, K. Thomas, A. Doupé, and G.-J. Ahn, \"Sunrise to sunset: Analyzing the end-to-end life cycle and effectiveness of phishing attacks at scale,\" in Proc. 29th USENIX Security Symp., 2020.",
+  "A. Oest, Y. Safaei, P. Zhang, B. Wardman, K. Tyers, Y. Shoshitaishvili, and A. Doupé, \"PhishTime: Continuous longitudinal measurement of the effectiveness of anti-phishing blacklists,\" in Proc. 29th USENIX Security Symp., 2020.",
+  "D. M. Divakaran and A. Oest, \"Phishing detection leveraging machine learning and deep learning: A review,\" IEEE Security & Privacy, vol. 20, no. 5, 2022.",
+  "R. Zieni, L. Massari, and M. C. Calzarossa, \"Phishing or not phishing? A survey on the detection of phishing websites,\" IEEE Access, vol. 11, 2023.",
+  "A. Aljofey, Q. Jiang, Q. Qu, M. Huang, and J.-P. Niyigena, \"An effective phishing detection model based on character level convolutional neural network from URL,\" Electronics, vol. 9, no. 9, 2020.",
+  "A. Hannousse and S. Yahiouche, \"Towards benchmark datasets for machine learning based website phishing detection: An experimental study,\" Engineering Applications of Artificial Intelligence, vol. 104, 2021.",
+  "P. Zhang, A. Oest, H. Cho, Z. Sun, R. Johnson, B. Wardman, S. Sarker, A. Kapravelos, T. Bao, R. Wang, Y. Shoshitaishvili, A. Doupé, and G.-J. Ahn, \"CrawlPhish: Large-scale analysis of client-side cloaking techniques in phishing,\" in Proc. IEEE Symp. Security and Privacy, 2021.",
+  "B. Kondracki, B. A. Azad, O. Starov, and N. Nikiforakis, \"Catching transparent phish: Analyzing and detecting MITM phishing toolkits,\" in Proc. ACM SIGSAC Conf. Computer and Communications Security, 2021.",
+  "H. Bijmans, T. Booij, A. Schwedersky, A. Nedgabat, and R. van Wegberg, \"Catching phishers by their bait: Investigating the Dutch phishing landscape through phishing kit detection,\" in Proc. 30th USENIX Security Symp., 2021.",
+  "OpenPhish, \"OpenPhish phishing intelligence feed.\" [Online]. Available: https://openphish.com/ (accessed Sept. 2, 2026).",
+  "Tranco, \"A research-oriented top sites ranking hardened against manipulation.\" [Online]. Available: https://tranco-list.eu/ (accessed Sept. 2, 2026).",
+  "Mozilla Foundation, \"Public Suffix List.\" [Online]. Available: https://publicsuffix.org/ (accessed Sept. 2, 2026).",
 ].forEach((t, i) => P(ref(i + 1, t)));
 
 // ---------- assemble ----------
 
+const pageSetup = {
+  page: {
+    size: { width: 12240, height: 15840, orientation: PageOrientation.PORTRAIT },
+    margin: { top: 900, right: 720, bottom: 280, left: 720 },
+  },
+};
+
 const doc = new Document({
   creator: "Bairi Christina",
-  title: "Multilingual Rule-Based Phishing URL Detection",
-  styles: {
-    default: {
-      document: { run: { font: FONT, size: BODY } },
-    },
-  },
+  title: "Measuring a Multilingual Rule-Based Phishing URL Detector",
+  styles: { default: { document: { run: { font: FONT, size: BODY } } } },
   sections: [
+    { properties: { ...pageSetup, column: { count: 1 } }, children: front },
     {
       properties: {
-        page: {
-          size: { width: 12240, height: 15840, orientation: PageOrientation.PORTRAIT },
-          margin: { top: 900, right: 720, bottom: 280, left: 720 },
-        },
-        column: { count: 1 },
-      },
-      children: front,
-    },
-    {
-      properties: {
-        // Page size and margins must be repeated: a section does not inherit
-        // them, and docx-js would otherwise default this one to A4.
-        page: {
-          size: { width: 12240, height: 15840, orientation: PageOrientation.PORTRAIT },
-          margin: { top: 900, right: 720, bottom: 280, left: 720 },
-        },
+        ...pageSetup,
         type: SectionType.CONTINUOUS,
         column: { count: 2, space: 340, equalWidth: true },
       },
